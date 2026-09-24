@@ -32,6 +32,43 @@
     }
     
     .touch-target { min-height: 44px; min-width: 44px; }
+    
+    /* Key Binding List Styles */
+    .key-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(30, 41, 59, 0.5);
+      border: 1px solid #334155;
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .key-btn {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #94a3b8;
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-family: monospace;
+      font-size: 0.875rem;
+      min-width: 80px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .key-btn:hover { background: #334155; color: #fff; }
+    .key-btn.capturing {
+      background: #7f1d1d;
+      border-color: #f87171;
+      color: #fca5a5;
+      animation: pulse-red 1s infinite;
+    }
+    @keyframes pulse-red {
+      0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+    }
   </style>
 </head>
 <body class="text-slate-100 font-sans">
@@ -122,25 +159,51 @@
               </label>
             </div>
             <p class="text-xs text-slate-400 leading-relaxed">
-              <strong>Smart Drift Mode:</strong> Starts scrolling when you speak. If you pause, it continues at your last speed. If it gets lost, it waits for your voice to re-align smoothly.
+              <strong>Smart Drift Mode:</strong> Starts scrolling when you speak. If you pause, it continues at your last speed.
               <br><span class="text-amber-500 mt-1 block"><i class="fa-solid fa-circle-exclamation"></i> Note: Requires Chrome/Edge. Not supported on iPad Safari.</span>
             </p>
           </div>
           
-          <label class="block mb-6">
+          <label class="block mb-4">
             <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Base Manual Speed</span><strong id="startSpeedLabel" class="text-violet-400">4</strong></div>
             <input id="startSpeedInput" type="range" min="1" max="20" value="4" class="w-full accent-violet-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
           </label>
           
-          <div class="grid grid-cols-2 gap-3 mb-4">
-            <button id="presenterPresetBtn" class="px-3 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold text-sm transition touch-target shadow-lg shadow-emerald-900/20">
-              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Remote Preset
+          <div class="flex gap-2 mb-4">
+            <button id="presenterPresetBtn" class="flex-1 px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold text-sm transition touch-target shadow-lg shadow-emerald-900/20">
+              Apply Remote Preset
             </button>
-            <button id="resetBindingsBtn" class="px-3 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-sm transition touch-target">
+            <button id="resetBindingsBtn" class="flex-1 px-3 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-sm transition touch-target">
               Reset Keys
             </button>
           </div>
-          <div id="keyStatus" class="text-xs text-slate-500 text-center">Current Bindings: PageUp/PageDown (Default)</div>
+
+          <!-- CUSTOM KEY BINDINGS LIST -->
+          <div class="space-y-2 mb-4">
+            <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2">Custom Key Bindings</p>
+            
+            <div class="key-row">
+              <span class="text-sm text-slate-300">Speed Up</span>
+              <button class="key-btn" data-bind="speedUp" id="btn-bind-speedUp">PageDown</button>
+            </div>
+            <div class="key-row">
+              <span class="text-sm text-slate-300">Slow Down</span>
+              <button class="key-btn" data-bind="speedDown" id="btn-bind-speedDown">PageUp</button>
+            </div>
+            <div class="key-row">
+              <span class="text-sm text-slate-300">Start / Stop</span>
+              <button class="key-btn" data-bind="toggle" id="btn-bind-toggle">Space</button>
+            </div>
+            <div class="key-row">
+              <span class="text-sm text-slate-300">Reset Script</span>
+              <button class="key-btn" data-bind="reset" id="btn-bind-reset">KeyR</button>
+            </div>
+            <div class="key-row">
+              <span class="text-sm text-slate-300">Exit</span>
+              <button class="key-btn" data-bind="exit" id="btn-bind-exit">Escape</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-500 text-center italic">Click a button above, then press your desired key.</p>
         </div>
       </section>
 
@@ -168,16 +231,25 @@
   <section id="prompterPage" class="hidden fixed inset-0 z-50 overflow-hidden bg-black">
     <canvas id="prompterCanvas"></canvas>
     
-    <!-- Controls -->
-    <button id="mobileExitBtn" class="fixed top-4 right-4 z-40 px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg transition touch-target">
-      <i class="fa-solid fa-xmark mr-1"></i> Exit
-    </button>
-    
-    <!-- Voice Status Indicator -->
-    <button id="voiceToggleBtn" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 px-6 py-2.5 rounded-full bg-slate-800/80 border border-slate-600 backdrop-blur font-bold text-sm flex items-center gap-2 touch-target transition-all duration-300 hover:bg-slate-700">
-      <i class="fa-solid fa-microphone-slash text-slate-400"></i> <span id="voiceStatusText">Voice Off</span>
-    </button>
+    <!-- Top Controls -->
+    <div class="fixed top-4 left-0 right-0 z-40 flex justify-between items-start px-4 pointer-events-none">
+      <!-- RESET BUTTON (Left) -->
+      <button id="resetScriptBtn" class="pointer-events-auto px-5 py-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-white font-bold shadow-lg transition touch-target flex items-center gap-2">
+        <i class="fa-solid fa-rotate-left"></i> Reset Script
+      </button>
+      
+      <!-- Voice Status (Center) -->
+      <button id="voiceToggleBtn" class="pointer-events-auto px-6 py-2.5 rounded-full bg-slate-800/80 border border-slate-600 backdrop-blur font-bold text-sm flex items-center gap-2 touch-target transition-all duration-300 hover:bg-slate-700">
+        <i class="fa-solid fa-microphone-slash text-slate-400"></i> <span id="voiceStatusText">Voice Off</span>
+      </button>
 
+      <!-- EXIT BUTTON (Right) -->
+      <button id="mobileExitBtn" class="pointer-events-auto px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg transition touch-target">
+        <i class="fa-solid fa-xmark mr-1"></i> Exit
+      </button>
+    </div>
+
+    <!-- Bottom HUD -->
     <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-0 hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
       <span>Speed: <strong id="speedHud" class="text-blue-400">0</strong></span>
       <span class="text-slate-600">|</span>
@@ -187,7 +259,7 @@
 
   <script>
     "use strict";
-    const STORAGE_KEY = "pro_voice_prompt_fixed_v3";
+    const STORAGE_KEY = "pro_voice_prompt_fixed_v4";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     // Default State with Instructions
@@ -228,6 +300,7 @@
     let canvas, ctx;
     let rafId;
     let lastTime = 0;
+    let captureAction = null; // For key binding UI
     
     // Smoothing Constants
     const SMOOTHING_FACTOR = 0.08; 
@@ -239,7 +312,8 @@
       cacheEls();
       loadState();
       renderSetup();
-      updateButtonStyles(); // Ensure buttons reflect loaded state
+      updateButtonStyles();
+      renderKeyBindings(); // Render custom keys
       
       // Init Speech
       if (SpeechRecognition) {
@@ -247,17 +321,10 @@
         recognition.continuous = true;
         recognition.interimResults = true;
         recognition.onresult = handleSpeech;
-        recognition.onerror = (e) => { 
-          console.log("Speech error", e.error); 
-          if(e.error === "not-allowed") alert("Microphone access denied. Please allow permissions."); 
-        };
+        recognition.onerror = (e) => { console.log("Speech error", e.error); };
         recognition.onend = () => { 
-          if (state.voiceMode && isListening) { 
-            try { recognition.start(); } catch(e){} 
-          } else { 
-            isListening = false; 
-            updateVoiceUI(); 
-          } 
+          if (state.voiceMode && isListening) { try { recognition.start(); } catch(e){} } 
+          else { isListening = false; updateVoiceUI(); } 
         };
       } else {
         els.voiceModeInput.disabled = true;
@@ -270,7 +337,7 @@
     }
 
     function cacheEls() {
-      const ids = ["setupPage","prompterPage","prompterCanvas","startPromptBtn","clearSettingsBtn","flipHBtn","flipVBtn","textSizeInput","textSizeLabel","indentInput","indentLabel","textColorInput","bgColorInput","focusEnabledInput","focusHeightInput","focusHeightLabel","focusOffsetInput","focusOffsetLabel","voiceModeInput","startSpeedInput","startSpeedLabel","presenterPresetBtn","resetBindingsBtn","keyStatus","scriptInput","fileNameInput","importBtn","fileInput","exportTxtBtn","mobileExitBtn","voiceToggleBtn","voiceStatusText","speedHud","modeHud"];
+      const ids = ["setupPage","prompterPage","prompterCanvas","startPromptBtn","clearSettingsBtn","flipHBtn","flipVBtn","textSizeInput","textSizeLabel","indentInput","indentLabel","textColorInput","bgColorInput","focusEnabledInput","focusHeightInput","focusHeightLabel","focusOffsetInput","focusOffsetLabel","voiceModeInput","startSpeedInput","startSpeedLabel","presenterPresetBtn","resetBindingsBtn","scriptInput","fileNameInput","importBtn","fileInput","exportTxtBtn","mobileExitBtn","resetScriptBtn","voiceToggleBtn","voiceStatusText","speedHud","modeHud"];
       ids.forEach(id => els[id] = document.getElementById(id));
       canvas = els.prompterCanvas;
       ctx = canvas.getContext("2d", { alpha: false });
@@ -281,12 +348,8 @@
       if (s) {
         try { 
           const parsed = JSON.parse(s);
-          // Merge carefully to avoid losing new fields if version changes
           state = { ...defaultState, ...parsed, bindings: { ...defaultState.bindings, ...(parsed.bindings || {}) } };
-        } catch(e) {
-          console.error("Save file corrupted, resetting.");
-          state = { ...defaultState };
-        }
+        } catch(e) { state = { ...defaultState }; }
       }
     }
     function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
@@ -294,75 +357,88 @@
     function renderSetup() {
       els.scriptInput.value = state.text;
       els.fileNameInput.value = state.fileName;
-      
-      els.textSizeInput.value = state.textSize; 
-      els.textSizeLabel.textContent = state.textSize + "px";
-      
-      els.indentInput.value = state.indent; 
-      els.indentLabel.textContent = state.indent + "%";
-      
-      els.textColorInput.value = state.textColor; 
-      els.bgColorInput.value = state.bgColor;
-      
+      els.textSizeInput.value = state.textSize; els.textSizeLabel.textContent = state.textSize + "px";
+      els.indentInput.value = state.indent; els.indentLabel.textContent = state.indent + "%";
+      els.textColorInput.value = state.textColor; els.bgColorInput.value = state.bgColor;
       els.focusEnabledInput.checked = state.focusEnabled;
-      els.focusHeightInput.value = state.focusHeight; 
-      els.focusHeightLabel.textContent = state.focusHeight + "px";
-      
-      els.focusOffsetInput.value = state.focusOffset; 
-      els.focusOffsetLabel.textContent = state.focusOffset + "%";
-      
+      els.focusHeightInput.value = state.focusHeight; els.focusHeightLabel.textContent = state.focusHeight + "px";
+      els.focusOffsetInput.value = state.focusOffset; els.focusOffsetLabel.textContent = state.focusOffset + "%";
       els.voiceModeInput.checked = state.voiceMode;
-      
-      els.startSpeedInput.value = state.startSpeed; 
-      els.startSpeedLabel.textContent = state.startSpeed;
-      
-      updateKeyStatusText();
+      els.startSpeedInput.value = state.startSpeed; els.startSpeedLabel.textContent = state.startSpeed;
     }
 
     function updateButtonStyles() {
-      // Toggle visual active class based on state
       if (state.flipH) els.flipHBtn.classList.add("btn-active"); else els.flipHBtn.classList.remove("btn-active");
       if (state.flipV) els.flipVBtn.classList.add("btn-active"); else els.flipVBtn.classList.remove("btn-active");
     }
 
-    function updateKeyStatusText() {
-      const up = state.bindings.speedUp.key || state.bindings.speedUp.code;
-      const down = state.bindings.speedDown.key || state.bindings.speedDown.code;
-      els.keyStatus.textContent = `Speed Up: ${up} | Slow Down: ${down}`;
+    // --- KEY BINDING UI LOGIC ---
+    function renderKeyBindings() {
+      const map = {
+        speedUp: "btn-bind-speedUp",
+        speedDown: "btn-bind-speedDown",
+        toggle: "btn-bind-toggle",
+        reset: "btn-bind-reset",
+        exit: "btn-bind-exit"
+      };
+      
+      for (const [action, id] of Object.entries(map)) {
+        const btn = document.getElementById(id);
+        if (btn) {
+          const val = state.bindings[action];
+          btn.textContent = val.key === " " ? "Space" : (val.key || val.code);
+          btn.classList.remove("capturing");
+          if (captureAction === action) btn.classList.add("capturing");
+        }
+      }
     }
+
+    function startCapture(action) {
+      captureAction = action;
+      renderKeyBindings();
+      // Small timeout to allow UI update before listening
+      setTimeout(() => {
+        const handler = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (e.key === "Escape" && captureAction !== "exit") {
+            captureAction = null;
+            window.removeEventListener("keydown", handler);
+            renderKeyBindings();
+            return;
+          }
+          
+          // Save the key
+          state.bindings[captureAction] = {
+            code: e.code,
+            key: e.key
+          };
+          saveState();
+          captureAction = null;
+          window.removeEventListener("keydown", handler);
+          renderKeyBindings();
+        };
+        window.addEventListener("keydown", handler, { once: true });
+      }, 50);
+    }
+
+    // --- END KEY BINDING UI LOGIC ---
 
     function wireUI() {
       els.startPromptBtn.onclick = startPrompter;
       els.mobileExitBtn.onclick = stopPrompter;
       
-      els.clearSettingsBtn.onclick = () => { 
-        if(confirm("Reset all settings and script to default?")) {
-          localStorage.removeItem(STORAGE_KEY); 
-          location.reload(); 
-        }
-      };
+      // NEW: Reset Script Button
+      els.resetScriptBtn.onclick = resetScriptPosition;
+
+      els.clearSettingsBtn.onclick = () => { if(confirm("Reset all?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } };
       
-      els.flipHBtn.onclick = () => { 
-        state.flipH = !state.flipH; 
-        saveState(); 
-        updateButtonStyles(); 
-      };
-      
-      els.flipVBtn.onclick = () => { 
-        state.flipV = !state.flipV; 
-        saveState(); 
-        updateButtonStyles(); 
-      };
+      els.flipHBtn.onclick = () => { state.flipH = !state.flipH; saveState(); updateButtonStyles(); };
+      els.flipVBtn.onclick = () => { state.flipV = !state.flipV; saveState(); updateButtonStyles(); };
       
       const bindRange = (inp, key, lbl, suffix) => {
-        inp.oninput = () => { 
-          state[key] = +inp.value; 
-          lbl.textContent = state[key] + suffix; 
-          saveState(); 
-          if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); }
-        };
+        inp.oninput = () => { state[key] = +inp.value; lbl.textContent = state[key] + suffix; saveState(); if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); } };
       };
-      
       bindRange(els.textSizeInput, "textSize", els.textSizeLabel, "px");
       bindRange(els.indentInput, "indent", els.indentLabel, "%");
       bindRange(els.focusHeightInput, "focusHeight", els.focusHeightLabel, "px");
@@ -370,31 +446,20 @@
       
       els.textColorInput.oninput = () => { state.textColor = els.textColorInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
       els.bgColorInput.oninput = () => { state.bgColor = els.bgColorInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
-      
       els.focusEnabledInput.onchange = () => { state.focusEnabled = els.focusEnabledInput.checked; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
       
       els.voiceModeInput.onchange = () => { 
-        state.voiceMode = els.voiceModeInput.checked; 
-        saveState(); 
-        if (state.voiceMode && !isListening && recognition) { 
-          try { recognition.start(); isListening = true; } catch(e){} 
-        }
-        if (!state.voiceMode && isListening && recognition) { 
-          recognition.stop(); isListening = false; lastValidSpeed = 0; 
-        }
+        state.voiceMode = els.voiceModeInput.checked; saveState(); 
+        if (state.voiceMode && !isListening && recognition) { try { recognition.start(); isListening = true; } catch(e){} }
+        if (!state.voiceMode && isListening && recognition) { recognition.stop(); isListening = false; lastValidSpeed = 0; }
         updateVoiceUI();
       };
 
       els.voiceToggleBtn.onclick = () => {
-        if (!recognition) return alert("Voice recognition not supported in this browser.");
-        state.voiceMode = !state.voiceMode;
-        els.voiceModeInput.checked = state.voiceMode;
-        saveState();
-        if (state.voiceMode) { 
-          try { recognition.start(); isListening = true; } catch(e){} 
-        } else { 
-          recognition.stop(); isListening = false; lastValidSpeed = 0; 
-        }
+        if (!recognition) return alert("Voice not supported.");
+        state.voiceMode = !state.voiceMode; els.voiceModeInput.checked = state.voiceMode; saveState();
+        if (state.voiceMode) { try { recognition.start(); isListening = true; } catch(e){} } 
+        else { recognition.stop(); isListening = false; lastValidSpeed = 0; }
         updateVoiceUI();
       };
 
@@ -408,17 +473,18 @@
           reset: { code: "KeyR", key: "r" },
           exit: { code: "Escape", key: "Escape" }
         };
-        saveState(); 
-        updateKeyStatusText();
-        alert("Remote Preset Applied:\nSpeed Up = Page Down / Right Arrow\nSlow Down = Page Up / Left Arrow");
+        saveState(); renderKeyBindings();
+        alert("Preset Applied: PageDown (Speed Up) / PageUp (Slow Down)");
       };
 
       els.resetBindingsBtn.onclick = () => { 
-        state.bindings = { ...defaultState.bindings };
-        saveState();
-        updateKeyStatusText();
-        alert("Key bindings reset to default.");
+        state.bindings = { ...defaultState.bindings }; saveState(); renderKeyBindings(); 
       };
+
+      // Attach Click Events to Key Binding Buttons
+      document.querySelectorAll('.key-btn').forEach(btn => {
+        btn.onclick = () => startCapture(btn.dataset.bind);
+      });
 
       els.importBtn.onclick = () => els.fileInput.click();
       els.fileInput.onchange = (e) => {
@@ -426,46 +492,31 @@
         const r = new FileReader();
         r.onload = (ev) => { 
           let text = ev.target.result;
-          if (f.name.toLowerCase().endsWith('.rtf')) {
-            // Simple RTF strip
-            text = text.replace(/\\par[d]?/g, "\n").replace(/\\[a-z]+-?\d* ?/g, "").replace(/[{}]/g, "");
-          }
-          state.text = text; 
-          els.scriptInput.value = state.text; 
-          saveState(); 
+          if (f.name.toLowerCase().endsWith('.rtf')) text = text.replace(/\\par[d]?/g, "\n").replace(/\\[a-z]+-?\d* ?/g, "").replace(/[{}]/g, "");
+          state.text = text; els.scriptInput.value = state.text; saveState(); 
           if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); }
         };
         r.readAsText(f);
       };
-      
       els.exportTxtBtn.onclick = () => {
         const b = new Blob([state.text], {type:"text/plain"});
         const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = state.fileName; a.click();
       };
-      
       els.scriptInput.oninput = () => { state.text = els.scriptInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); } };
       els.fileNameInput.oninput = () => { state.fileName = els.fileNameInput.value; saveState(); };
 
       window.onresize = () => { if (!els.prompterPage.classList.contains("hidden")) { resizeCanvas(); prepareLines(); draw(); } };
       
-      // Key Controls
       window.onkeydown = (e) => {
         if (els.prompterPage.classList.contains("hidden")) return;
-        
-        // Prevent default scrolling for arrow keys/space
         if(["Space","ArrowUp","ArrowDown","PageUp","PageDown"].includes(e.code)) e.preventDefault();
 
         if (e.code === state.bindings.exit.code || e.key === "Escape") stopPrompter();
-        if (e.code === state.bindings.reset.code) { currentScrollPos = 0; lastValidSpeed = 0; }
+        if (e.code === state.bindings.reset.code) resetScriptPosition();
         
         if (e.code === state.bindings.toggle.code) { 
-           if(state.voiceMode) { 
-             state.voiceMode = false; els.voiceModeInput.checked = false; 
-             if(recognition) recognition.stop(); isListening = false; 
-             updateVoiceUI(); saveState();
-           } else { 
-             lastValidSpeed = lastValidSpeed > 0.1 ? 0 : state.startSpeed; 
-           }
+           if(state.voiceMode) { state.voiceMode = false; els.voiceModeInput.checked = false; if(recognition) recognition.stop(); isListening = false; updateVoiceUI(); saveState(); } 
+           else { lastValidSpeed = lastValidSpeed > 0.1 ? 0 : state.startSpeed; }
         }
         
         if (!state.voiceMode) {
@@ -476,29 +527,26 @@
     }
 
     function updateVoiceUI() {
-      const btn = els.voiceToggleBtn;
-      const txt = els.voiceStatusText;
-      const icon = btn.querySelector('i');
+      const btn = els.voiceToggleBtn; const txt = els.voiceStatusText; const icon = btn.querySelector('i');
       if (state.voiceMode && isListening) {
-        btn.classList.add("voice-pulsing");
-        txt.textContent = "Listening...";
-        icon.className = "fa-solid fa-microphone";
-        els.modeHud.textContent = "Voice Auto-Scroll";
-        els.modeHud.className = "text-emerald-400 font-bold";
+        btn.classList.add("voice-pulsing"); txt.textContent = "Listening..."; icon.className = "fa-solid fa-microphone";
+        els.modeHud.textContent = "Voice Auto-Scroll"; els.modeHud.className = "text-emerald-400 font-bold";
       } else if (state.voiceMode && !isListening) {
-        btn.classList.remove("voice-pulsing");
-        txt.textContent = "Waiting...";
-        txt.className = "text-amber-400 font-bold";
-        icon.className = "fa-solid fa-microphone-slash text-amber-400";
-        els.modeHud.textContent = "Voice (Paused)";
-        els.modeHud.className = "text-amber-400";
+        btn.classList.remove("voice-pulsing"); txt.textContent = "Waiting..."; txt.className = "text-amber-400 font-bold"; icon.className = "fa-solid fa-microphone-slash text-amber-400";
+        els.modeHud.textContent = "Voice (Paused)"; els.modeHud.className = "text-amber-400";
       } else {
-        btn.classList.remove("voice-pulsing");
-        txt.textContent = "Voice Off";
-        txt.className = "text-slate-400";
-        icon.className = "fa-solid fa-microphone-slash text-slate-400";
-        els.modeHud.textContent = "Manual";
-        els.modeHud.className = "text-slate-400";
+        btn.classList.remove("voice-pulsing"); txt.textContent = "Voice Off"; txt.className = "text-slate-400"; icon.className = "fa-solid fa-microphone-slash text-slate-400";
+        els.modeHud.textContent = "Manual"; els.modeHud.className = "text-slate-400";
+      }
+    }
+
+    function resetScriptPosition() {
+      currentScrollPos = 0;
+      lastValidSpeed = 0;
+      targetScrollPos = 0;
+      // If voice mode is on, restart recognition to catch first words
+      if (state.voiceMode && recognition) {
+        try { recognition.stop(); setTimeout(() => recognition.start(), 100); } catch(e) {}
       }
     }
 
@@ -509,20 +557,13 @@
       
       resizeCanvas();
       prepareLines();
-      currentScrollPos = 0;
-      lastValidSpeed = 0;
-      targetScrollPos = 0;
+      resetScriptPosition(); // Ensure we start at top
       
       if (state.voiceMode && recognition) {
-        try { recognition.start(); isListening = true; } catch(e) { 
-          console.error(e);
-          state.voiceMode = false; 
-          els.voiceModeInput.checked = false;
-          saveState();
-        }
+        try { recognition.start(); isListening = true; } catch(e) { state.voiceMode = false; els.voiceModeInput.checked = false; saveState(); }
       }
       updateVoiceUI();
-      updateButtonStyles(); // Ensure flip states are visual
+      updateButtonStyles();
       
       lastTime = performance.now();
       loop();
@@ -549,7 +590,11 @@
     function prepareLines() {
       ctx.font = `${state.textSize}px Arial, sans-serif`;
       lineHeight = state.textSize * 1.4;
-      topPad = window.innerHeight * 0.65; 
+      // FIX: Start text higher up so the first line is near the focus bar
+      // Focus bar is at X% from top. We want line 0 to be there.
+      const focusY = (window.innerHeight * state.focusOffset) / 100;
+      topPad = focusY; 
+      
       const width = window.innerWidth * (1 - (state.indent / 50));
       const words = state.text.split(/\s+/);
       lines = [];
@@ -566,18 +611,16 @@
       });
       if (currentLine) lines.push(currentLine);
       
-      const contentHeight = (lines.length * lineHeight) + topPad;
-      maxScroll = Math.max(0, contentHeight - (window.innerHeight * 0.8));
+      const contentHeight = (lines.length * lineHeight) + topPad + (window.innerHeight * 0.2);
+      maxScroll = Math.max(0, contentHeight - window.innerHeight);
     }
 
     function handleSpeech(e) {
       if (!state.voiceMode) return;
-      
       let final = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         if (e.results[i].isFinal) final += e.results[i][0].transcript;
       }
-      
       if (!final.trim()) return;
 
       const lowerScript = state.text.toLowerCase();
@@ -588,10 +631,7 @@
         let charCount = 0;
         let targetLineIdx = 0;
         for (let i = 0; i < lines.length; i++) {
-          if (charCount + lines[i].length >= matchIndex) {
-            targetLineIdx = i;
-            break;
-          }
+          if (charCount + lines[i].length >= matchIndex) { targetLineIdx = i; break; }
           charCount += lines[i].length + 1;
         }
 
@@ -603,17 +643,14 @@
 
         const diff = targetScrollPos - currentScrollPos;
         let newSpeed = diff * 0.15; 
-        
         if (newSpeed > 15) newSpeed = 15;
         if (newSpeed < -5) newSpeed = -5; 
-        
         lastValidSpeed = newSpeed;
       }
     }
 
     function loop(now) {
-      const dt = (now - lastTime) / 16.66; 
-      lastTime = now;
+      const dt = (now - lastTime) / 16.66; lastTime = now;
 
       if (state.voiceMode && isListening) {
         if (Math.abs(targetScrollPos - currentScrollPos) > 1) {
@@ -639,13 +676,11 @@
     }
 
     function draw() {
-      // BG
       ctx.fillStyle = state.bgColor;
       ctx.globalAlpha = state.bgOpacity / 100;
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       ctx.globalAlpha = 1.0;
 
-      // Transform for Mirror
       ctx.save();
       ctx.translate(window.innerWidth / 2, window.innerHeight / 2);
       ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
@@ -665,11 +700,9 @@
 
         const lineCenter = y + (lineHeight/2);
         if (state.voiceMode && isListening && lineCenter >= highlightStart && lineCenter <= highlightEnd) {
-          ctx.fillStyle = "#facc15"; // Yellow highlight
-          ctx.globalAlpha = 1.0;
+          ctx.fillStyle = "#facc15"; ctx.globalAlpha = 1.0;
           ctx.fillText(lines[i], window.innerWidth * (state.indent/100), y);
-          ctx.fillStyle = state.textColor;
-          ctx.globalAlpha = 1.0;
+          ctx.fillStyle = state.textColor; ctx.globalAlpha = 1.0;
         } else {
           ctx.globalAlpha = 1.0;
           ctx.fillText(lines[i], window.innerWidth * (state.indent/100), y);
@@ -679,18 +712,13 @@
       if (state.focusEnabled) {
         ctx.fillStyle = `rgba(16, 185, 129, 0.15)`;
         ctx.fillRect(0, highlightStart, window.innerWidth, state.focusHeight);
-        ctx.strokeStyle = `rgba(16, 185, 129, 0.4)`;
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(0, highlightStart); ctx.lineTo(window.innerWidth, highlightStart);
-        ctx.moveTo(0, highlightEnd); ctx.lineTo(window.innerWidth, highlightEnd);
-        ctx.stroke();
+        ctx.strokeStyle = `rgba(16, 185, 129, 0.4)`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, highlightStart); ctx.lineTo(window.innerWidth, highlightStart);
+        ctx.moveTo(0, highlightEnd); ctx.lineTo(window.innerWidth, highlightEnd); ctx.stroke();
       }
-
       ctx.restore();
     }
 
-    // Initialize
     init();
   </script>
 </body>
