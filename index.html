@@ -17,7 +17,6 @@
       color: #60a5fa !important;
       font-weight: 800 !important;
     }
-
     .voice-pulsing { 
       animation: pulse-green 1.5s infinite; 
       border-color: #4ade80 !important; 
@@ -29,7 +28,6 @@
       70% { box-shadow: 0 0 0 15px rgba(74, 222, 128, 0); } 
       100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } 
     }
-    
     .touch-target { min-height: 44px; min-width: 44px; }
     .key-row {
       display: flex; justify-content: space-between; align-items: center;
@@ -59,7 +57,7 @@
     <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-6 mb-8">
       <div>
         <h1 class="text-3xl font-bold text-white">Pro Voice Teleprompter</h1>
-        <p class="text-slate-400 text-sm mt-1">Smooth auto-scroll with drift recovery.</p>
+        <p class="text-slate-400 text-sm mt-1">Fixed: Immediate Start & Scroll Logic</p>
       </div>
       <div class="flex flex-col sm:flex-row gap-3">
         <button id="clearSettingsBtn" class="px-5 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold transition touch-target">Reset All</button>
@@ -72,8 +70,6 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
       <!-- SETTINGS COLUMN -->
       <section class="lg:col-span-5 space-y-6">
-        
-        <!-- Display Settings -->
         <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
           <h2 class="text-xl font-bold mb-5 text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-blue-400"></i> Display</h2>
           <div class="grid grid-cols-2 gap-4 mb-6">
@@ -106,7 +102,6 @@
           </div>
         </div>
 
-        <!-- Focus Bar Settings -->
         <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
           <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-eye text-emerald-400"></i> Focus Bar</h2>
@@ -127,10 +122,8 @@
           </div>
         </div>
 
-        <!-- Voice & Controls -->
         <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
           <h2 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="fa-solid fa-microphone text-emerald-400"></i> Voice & Remote</h2>
-          
           <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-600 mb-6">
             <div class="flex items-center justify-between mb-3">
               <span class="font-bold text-emerald-400 flex items-center gap-2">Auto-Scroll Voice</span>
@@ -219,11 +212,11 @@
 
   <script>
     "use strict";
-    const STORAGE_KEY = "pro_voice_prompt_fixed_v5";
+    const STORAGE_KEY = "pro_voice_prompt_final_v7";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
     const defaultState = {
-      text: "Welcome to Pro Voice Teleprompter.\n\nIf you can read this, the script is loading correctly!\n\nThis version features smooth 'Drift Mode' for natural scrolling.\n\nHOW TO USE:\n1. Edit this text box with your script.\n2. Use the sliders to adjust text size and margins.\n3. Connect your Bluetooth remote (PageUp/PageDown mode recommended).\n4. Click 'Start Prompting' to begin.\n\nVOICE MODE (Chrome/Edge Only):\n- Toggle the 'Auto-Scroll Voice' switch above.\n- Start speaking clearly. The text will accelerate to match your pace.\n- If you pause, the text will drift slowly rather than stopping abruptly.\n\nEnjoy your presentation!",
+      text: "Welcome to Pro Voice Teleprompter.\n\nThe text should now appear immediately when you click Start.\n\nIt will start 3/4 of the way down the screen, giving you time to prepare before it reaches the green focus bar.\n\nIt will continue scrolling until the very last line is centered in the focus bar.\n\nEnjoy your presentation!",
       fileName: "teleprompter-script.txt",
       flipH: false, 
       flipV: false,
@@ -466,13 +459,12 @@
       if (state.voiceMode && recognition) {
         try { recognition.stop(); setTimeout(() => recognition.start(), 100); } catch(e) {}
       }
-      draw(); // Force immediate redraw at top
+      draw();
     }
 
     function startPrompter() {
-      // Debug: Check if text exists
       if (!state.text || state.text.trim() === "") {
-        alert("Error: Script is empty! Please type some text in the editor first.");
+        alert("Error: Script is empty!");
         return;
       }
 
@@ -482,13 +474,28 @@
       
       resizeCanvas();
       prepareLines();
-      resetScriptPosition(); 
+      
+      // FIX: Start immediately at 75% down the screen
+      // We set scrollPos so that the first line (index 0) is at 75% of screen height
+      const startTargetY = window.innerHeight * 0.75;
+      const focusY = (window.innerHeight * state.focusOffset) / 100;
+      // Formula: scrollPos = (lineY + topPad) - targetY
+      currentScrollPos = (0 * lineHeight) + topPad - startTargetY + (lineHeight/2);
+      
+      // Ensure we don't start negative if text is very short
+      if (currentScrollPos < 0) currentScrollPos = 0;
+
+      lastValidSpeed = 0;
+      targetScrollPos = currentScrollPos;
       
       if (state.voiceMode && recognition) {
         try { recognition.start(); isListening = true; } catch(e) { state.voiceMode = false; els.voiceModeInput.checked = false; saveState(); }
       }
       updateVoiceUI();
       updateButtonStyles();
+      
+      // Draw immediately so user sees text before loop starts
+      draw();
       
       lastTime = performance.now();
       loop();
@@ -516,7 +523,8 @@
       ctx.font = `${state.textSize}px Arial, sans-serif`;
       lineHeight = state.textSize * 1.4;
       
-      // Calculate position based on focus bar
+      // Top padding is the focus bar position. 
+      // Line 0 will be drawn at y = topPad - scrollPos
       const focusY = (window.innerHeight * state.focusOffset) / 100;
       topPad = focusY; 
       
@@ -536,10 +544,19 @@
       });
       if (currentLine) lines.push(currentLine);
       
-      console.log(`Loaded ${lines.length} lines of text.`);
+      // FIX: Calculate maxScroll so the LAST line ends up in the focus bar
+      // Last line index = lines.length - 1
+      // We want: (lastIndex * lineHeight) + topPad - scrollPos = focusY
+      // So: scrollPos = (lastIndex * lineHeight) + topPad - focusY
+      const lastIndex = lines.length - 1;
+      const endTargetY = focusY; // Center of focus bar
       
-      const contentHeight = (lines.length * lineHeight) + topPad + (window.innerHeight * 0.2);
-      maxScroll = Math.max(0, contentHeight - window.innerHeight);
+      // The scroll position where the last line is centered in the focus bar
+      const scrollPosForLastLine = (lastIndex * lineHeight) + topPad - endTargetY + (lineHeight/2);
+      
+      // Add a little extra buffer at the bottom so it doesn't feel abrupt
+      maxScroll = scrollPosForLastLine + (window.innerHeight * 0.1);
+      if (maxScroll < 0) maxScroll = 0;
     }
 
     function handleSpeech(e) {
@@ -589,6 +606,7 @@
         currentScrollPos += lastValidSpeed * dt;
       }
 
+      // Boundaries
       if (currentScrollPos < 0) { currentScrollPos = 0; lastValidSpeed = 0; }
       if (currentScrollPos > maxScroll) { currentScrollPos = maxScroll; lastValidSpeed = 0; }
 
