@@ -11,7 +11,6 @@
     input[type="color"] { -webkit-appearance: none; border: none; padding: 0; overflow: hidden; }
     #prompterCanvas { display: block; width: 100vw; height: 100vh; }
     
-    /* Active State for Buttons */
     .btn-active {
       background-color: rgba(59, 130, 246, 0.2) !important;
       border-color: #3b82f6 !important;
@@ -32,37 +31,19 @@
     }
     
     .touch-target { min-height: 44px; min-width: 44px; }
-    
-    /* Key Binding List Styles */
     .key-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(30, 41, 59, 0.5);
-      border: 1px solid #334155;
-      padding: 0.75rem;
-      border-radius: 0.5rem;
-      margin-bottom: 0.5rem;
+      display: flex; justify-content: space-between; align-items: center;
+      background: rgba(30, 41, 59, 0.5); border: 1px solid #334155;
+      padding: 0.75rem; border-radius: 0.5rem; margin-bottom: 0.5rem;
     }
     .key-btn {
-      background: #1e293b;
-      border: 1px solid #475569;
-      color: #94a3b8;
-      padding: 0.25rem 0.75rem;
-      border-radius: 0.375rem;
-      font-family: monospace;
-      font-size: 0.875rem;
-      min-width: 80px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s;
+      background: #1e293b; border: 1px solid #475569; color: #94a3b8;
+      padding: 0.25rem 0.75rem; border-radius: 0.375rem; font-family: monospace;
+      font-size: 0.875rem; min-width: 80px; text-align: center; cursor: pointer; transition: all 0.2s;
     }
     .key-btn:hover { background: #334155; color: #fff; }
     .key-btn.capturing {
-      background: #7f1d1d;
-      border-color: #f87171;
-      color: #fca5a5;
-      animation: pulse-red 1s infinite;
+      background: #7f1d1d; border-color: #f87171; color: #fca5a5; animation: pulse-red 1s infinite;
     }
     @keyframes pulse-red {
       0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.4); }
@@ -78,7 +59,7 @@
     <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-6 mb-8">
       <div>
         <h1 class="text-3xl font-bold text-white">Pro Voice Teleprompter</h1>
-        <p class="text-slate-400 text-sm mt-1">Smooth auto-scroll with drift recovery. Optimized for iPad + Bluetooth Remote.</p>
+        <p class="text-slate-400 text-sm mt-1">Smooth auto-scroll with drift recovery.</p>
       </div>
       <div class="flex flex-col sm:flex-row gap-3">
         <button id="clearSettingsBtn" class="px-5 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold transition touch-target">Reset All</button>
@@ -159,7 +140,7 @@
               </label>
             </div>
             <p class="text-xs text-slate-400 leading-relaxed">
-              <strong>Smart Drift Mode:</strong> Starts scrolling when you speak. If you pause, it continues at your last speed.
+              <strong>Smart Drift Mode:</strong> Starts scrolling when you speak.
               <br><span class="text-amber-500 mt-1 block"><i class="fa-solid fa-circle-exclamation"></i> Note: Requires Chrome/Edge. Not supported on iPad Safari.</span>
             </p>
           </div>
@@ -178,30 +159,13 @@
             </button>
           </div>
 
-          <!-- CUSTOM KEY BINDINGS LIST -->
           <div class="space-y-2 mb-4">
             <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2">Custom Key Bindings</p>
-            
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Speed Up</span>
-              <button class="key-btn" data-bind="speedUp" id="btn-bind-speedUp">PageDown</button>
-            </div>
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Slow Down</span>
-              <button class="key-btn" data-bind="speedDown" id="btn-bind-speedDown">PageUp</button>
-            </div>
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Start / Stop</span>
-              <button class="key-btn" data-bind="toggle" id="btn-bind-toggle">Space</button>
-            </div>
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Reset Script</span>
-              <button class="key-btn" data-bind="reset" id="btn-bind-reset">KeyR</button>
-            </div>
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Exit</span>
-              <button class="key-btn" data-bind="exit" id="btn-bind-exit">Escape</button>
-            </div>
+            <div class="key-row"><span class="text-sm text-slate-300">Speed Up</span><button class="key-btn" data-bind="speedUp" id="btn-bind-speedUp">PageDown</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Slow Down</span><button class="key-btn" data-bind="speedDown" id="btn-bind-speedDown">PageUp</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Start / Stop</span><button class="key-btn" data-bind="toggle" id="btn-bind-toggle">Space</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Reset Script</span><button class="key-btn" data-bind="reset" id="btn-bind-reset">KeyR</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Exit</span><button class="key-btn" data-bind="exit" id="btn-bind-exit">Escape</button></div>
           </div>
           <p class="text-xs text-slate-500 text-center italic">Click a button above, then press your desired key.</p>
         </div>
@@ -233,23 +197,19 @@
     
     <!-- Top Controls -->
     <div class="fixed top-4 left-0 right-0 z-40 flex justify-between items-start px-4 pointer-events-none">
-      <!-- RESET BUTTON (Left) -->
       <button id="resetScriptBtn" class="pointer-events-auto px-5 py-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-white font-bold shadow-lg transition touch-target flex items-center gap-2">
         <i class="fa-solid fa-rotate-left"></i> Reset Script
       </button>
       
-      <!-- Voice Status (Center) -->
       <button id="voiceToggleBtn" class="pointer-events-auto px-6 py-2.5 rounded-full bg-slate-800/80 border border-slate-600 backdrop-blur font-bold text-sm flex items-center gap-2 touch-target transition-all duration-300 hover:bg-slate-700">
         <i class="fa-solid fa-microphone-slash text-slate-400"></i> <span id="voiceStatusText">Voice Off</span>
       </button>
 
-      <!-- EXIT BUTTON (Right) -->
       <button id="mobileExitBtn" class="pointer-events-auto px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg transition touch-target">
         <i class="fa-solid fa-xmark mr-1"></i> Exit
       </button>
     </div>
 
-    <!-- Bottom HUD -->
     <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-0 hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
       <span>Speed: <strong id="speedHud" class="text-blue-400">0</strong></span>
       <span class="text-slate-600">|</span>
@@ -259,12 +219,11 @@
 
   <script>
     "use strict";
-    const STORAGE_KEY = "pro_voice_prompt_fixed_v4";
+    const STORAGE_KEY = "pro_voice_prompt_fixed_v5";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    // Default State with Instructions
     const defaultState = {
-      text: "Welcome to Pro Voice Teleprompter.\n\nThis version features smooth 'Drift Mode' for natural scrolling.\n\nHOW TO USE:\n1. Edit this text box with your script.\n2. Use the sliders to adjust text size and margins.\n3. Connect your Bluetooth remote (PageUp/PageDown mode recommended).\n4. Click 'Start Prompting' to begin.\n\nVOICE MODE (Chrome/Edge Only):\n- Toggle the 'Auto-Scroll Voice' switch above.\n- Start speaking clearly. The text will accelerate to match your pace.\n- If you pause, the text will drift slowly rather than stopping abruptly.\n- If you skip a paragraph, just keep speaking; the app will smoothly re-align to your voice.\n\nEnjoy your presentation!",
+      text: "Welcome to Pro Voice Teleprompter.\n\nIf you can read this, the script is loading correctly!\n\nThis version features smooth 'Drift Mode' for natural scrolling.\n\nHOW TO USE:\n1. Edit this text box with your script.\n2. Use the sliders to adjust text size and margins.\n3. Connect your Bluetooth remote (PageUp/PageDown mode recommended).\n4. Click 'Start Prompting' to begin.\n\nVOICE MODE (Chrome/Edge Only):\n- Toggle the 'Auto-Scroll Voice' switch above.\n- Start speaking clearly. The text will accelerate to match your pace.\n- If you pause, the text will drift slowly rather than stopping abruptly.\n\nEnjoy your presentation!",
       fileName: "teleprompter-script.txt",
       flipH: false, 
       flipV: false,
@@ -300,9 +259,8 @@
     let canvas, ctx;
     let rafId;
     let lastTime = 0;
-    let captureAction = null; // For key binding UI
+    let captureAction = null; 
     
-    // Smoothing Constants
     const SMOOTHING_FACTOR = 0.08; 
     const DRIFT_FACTOR = 0.96; 
 
@@ -313,9 +271,8 @@
       loadState();
       renderSetup();
       updateButtonStyles();
-      renderKeyBindings(); // Render custom keys
+      renderKeyBindings(); 
       
-      // Init Speech
       if (SpeechRecognition) {
         recognition = new SpeechRecognition();
         recognition.continuous = true;
@@ -372,16 +329,8 @@
       if (state.flipV) els.flipVBtn.classList.add("btn-active"); else els.flipVBtn.classList.remove("btn-active");
     }
 
-    // --- KEY BINDING UI LOGIC ---
     function renderKeyBindings() {
-      const map = {
-        speedUp: "btn-bind-speedUp",
-        speedDown: "btn-bind-speedDown",
-        toggle: "btn-bind-toggle",
-        reset: "btn-bind-reset",
-        exit: "btn-bind-exit"
-      };
-      
+      const map = { speedUp: "btn-bind-speedUp", speedDown: "btn-bind-speedDown", toggle: "btn-bind-toggle", reset: "btn-bind-reset", exit: "btn-bind-exit" };
       for (const [action, id] of Object.entries(map)) {
         const btn = document.getElementById(id);
         if (btn) {
@@ -396,41 +345,23 @@
     function startCapture(action) {
       captureAction = action;
       renderKeyBindings();
-      // Small timeout to allow UI update before listening
       setTimeout(() => {
         const handler = (e) => {
-          e.preventDefault();
-          e.stopPropagation();
+          e.preventDefault(); e.stopPropagation();
           if (e.key === "Escape" && captureAction !== "exit") {
-            captureAction = null;
-            window.removeEventListener("keydown", handler);
-            renderKeyBindings();
-            return;
+            captureAction = null; window.removeEventListener("keydown", handler); renderKeyBindings(); return;
           }
-          
-          // Save the key
-          state.bindings[captureAction] = {
-            code: e.code,
-            key: e.key
-          };
-          saveState();
-          captureAction = null;
-          window.removeEventListener("keydown", handler);
-          renderKeyBindings();
+          state.bindings[captureAction] = { code: e.code, key: e.key };
+          saveState(); captureAction = null; window.removeEventListener("keydown", handler); renderKeyBindings();
         };
         window.addEventListener("keydown", handler, { once: true });
       }, 50);
     }
 
-    // --- END KEY BINDING UI LOGIC ---
-
     function wireUI() {
       els.startPromptBtn.onclick = startPrompter;
       els.mobileExitBtn.onclick = stopPrompter;
-      
-      // NEW: Reset Script Button
       els.resetScriptBtn.onclick = resetScriptPosition;
-
       els.clearSettingsBtn.onclick = () => { if(confirm("Reset all?")) { localStorage.removeItem(STORAGE_KEY); location.reload(); } };
       
       els.flipHBtn.onclick = () => { state.flipH = !state.flipH; saveState(); updateButtonStyles(); };
@@ -466,25 +397,13 @@
       els.startSpeedInput.oninput = () => { state.startSpeed = +els.startSpeedInput.value; els.startSpeedLabel.textContent = state.startSpeed; saveState(); };
 
       els.presenterPresetBtn.onclick = () => {
-        state.bindings = {
-          speedUp: { code: "PageDown", key: "PageDown" },
-          speedDown: { code: "PageUp", key: "PageUp" },
-          toggle: { code: "Space", key: " " },
-          reset: { code: "KeyR", key: "r" },
-          exit: { code: "Escape", key: "Escape" }
-        };
-        saveState(); renderKeyBindings();
-        alert("Preset Applied: PageDown (Speed Up) / PageUp (Slow Down)");
+        state.bindings = { speedUp: { code: "PageDown", key: "PageDown" }, speedDown: { code: "PageUp", key: "PageUp" }, toggle: { code: "Space", key: " " }, reset: { code: "KeyR", key: "r" }, exit: { code: "Escape", key: "Escape" } };
+        saveState(); renderKeyBindings(); alert("Preset Applied: PageDown (Speed Up) / PageUp (Slow Down)");
       };
 
-      els.resetBindingsBtn.onclick = () => { 
-        state.bindings = { ...defaultState.bindings }; saveState(); renderKeyBindings(); 
-      };
+      els.resetBindingsBtn.onclick = () => { state.bindings = { ...defaultState.bindings }; saveState(); renderKeyBindings(); };
 
-      // Attach Click Events to Key Binding Buttons
-      document.querySelectorAll('.key-btn').forEach(btn => {
-        btn.onclick = () => startCapture(btn.dataset.bind);
-      });
+      document.querySelectorAll('.key-btn').forEach(btn => { btn.onclick = () => startCapture(btn.dataset.bind); });
 
       els.importBtn.onclick = () => els.fileInput.click();
       els.fileInput.onchange = (e) => {
@@ -544,20 +463,26 @@
       currentScrollPos = 0;
       lastValidSpeed = 0;
       targetScrollPos = 0;
-      // If voice mode is on, restart recognition to catch first words
       if (state.voiceMode && recognition) {
         try { recognition.stop(); setTimeout(() => recognition.start(), 100); } catch(e) {}
       }
+      draw(); // Force immediate redraw at top
     }
 
     function startPrompter() {
+      // Debug: Check if text exists
+      if (!state.text || state.text.trim() === "") {
+        alert("Error: Script is empty! Please type some text in the editor first.");
+        return;
+      }
+
       els.setupPage.classList.add("hidden");
       els.prompterPage.classList.remove("hidden");
       document.body.classList.add("prompt-lock");
       
       resizeCanvas();
       prepareLines();
-      resetScriptPosition(); // Ensure we start at top
+      resetScriptPosition(); 
       
       if (state.voiceMode && recognition) {
         try { recognition.start(); isListening = true; } catch(e) { state.voiceMode = false; els.voiceModeInput.checked = false; saveState(); }
@@ -590,8 +515,8 @@
     function prepareLines() {
       ctx.font = `${state.textSize}px Arial, sans-serif`;
       lineHeight = state.textSize * 1.4;
-      // FIX: Start text higher up so the first line is near the focus bar
-      // Focus bar is at X% from top. We want line 0 to be there.
+      
+      // Calculate position based on focus bar
       const focusY = (window.innerHeight * state.focusOffset) / 100;
       topPad = focusY; 
       
@@ -610,6 +535,8 @@
         }
       });
       if (currentLine) lines.push(currentLine);
+      
+      console.log(`Loaded ${lines.length} lines of text.`);
       
       const contentHeight = (lines.length * lineHeight) + topPad + (window.innerHeight * 0.2);
       maxScroll = Math.max(0, contentHeight - window.innerHeight);
@@ -676,11 +603,13 @@
     }
 
     function draw() {
+      // Clear Canvas
       ctx.fillStyle = state.bgColor;
       ctx.globalAlpha = state.bgOpacity / 100;
       ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       ctx.globalAlpha = 1.0;
 
+      // Apply Mirroring
       ctx.save();
       ctx.translate(window.innerWidth / 2, window.innerHeight / 2);
       ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
@@ -694,8 +623,11 @@
       const highlightStart = focusY - (state.focusHeight/2);
       const highlightEnd = focusY + (state.focusHeight/2);
 
+      // Draw Lines
       for (let i = 0; i < lines.length; i++) {
         const y = topPad + (i * lineHeight) - currentScrollPos;
+        
+        // Optimization: Only draw if on screen
         if (y > window.innerHeight || y + lineHeight < 0) continue;
 
         const lineCenter = y + (lineHeight/2);
@@ -709,6 +641,7 @@
         }
       }
 
+      // Draw Focus Bar
       if (state.focusEnabled) {
         ctx.fillStyle = `rgba(16, 185, 129, 0.15)`;
         ctx.fillRect(0, highlightStart, window.innerWidth, state.focusHeight);
