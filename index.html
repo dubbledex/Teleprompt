@@ -324,18 +324,19 @@
   <script>
     "use strict";
 
-    const STORAGE_KEY = "canvas_teleprompter_restored_v1";
+    const STORAGE_KEY = "canvas_teleprompter_voice_predictive_v1";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const defaultState = {
       text:
         "Welcome to the Canvas Teleprompter.\n\n" +
         "This version restores the stable canvas prompt rendering, then adds voice-follow logic without changing the basic scrolling behaviour.\n\n" +
-        "The first visible script lines start near the bottom of the screen, giving you time before they reach the green read bar.\n\n" +
+        "The first visible script lines start near the bottom of the screen in manual mode.\n\n" +
+        "In voice mode, the first line starts just below the green read bar.\n\n" +
         "The script will continue until the final line reaches the read bar.\n\n" +
         "Remote controls:\n" +
-        "- PageDown / Next speeds up gently\n" +
-        "- PageUp / Previous slows down gently\n" +
+        "- PageDown or Next speeds up gently\n" +
+        "- PageUp or Previous slows down gently\n" +
         "- Space starts or stops\n" +
         "- R resets the script position without changing your current speed\n\n" +
         "If you upload a new script, speed and position reset.",
@@ -383,13 +384,28 @@
 
     let recognition = null;
     let isListening = false;
+
+    // Voice-follow controller state.
     let voiceTargetScroll = 0;
     let voiceHasTarget = false;
+    let voiceVelocity = 0;
+    let voiceLastResultTime = 0;
+    let voiceLastMatchedLine = 0;
+    let voiceLastTranscriptWordCount = 0;
+    let voiceLostSince = 0;
 
     let captureAction = null;
 
     const remoteSpeedStep = 0.25;
     const pixelsPerSecondPerSpeedUnit = 18;
+
+    // Voice-follow tuning.
+    const voicePixelsPerWord = 18;
+    const voicePredictionSeconds = 1.15;
+    const voiceCorrectionGain = 1.85;
+    const voiceMaxVelocity = 180;
+    const voiceMinVelocity = 8;
+    const voiceLostDriftDecay = 0.995;
 
     const els = {};
 
@@ -712,12 +728,11 @@
         els.scriptInput.value = text;
         els.fileNameInput.value = file.name;
 
-        // New uploaded script should reset both speed and position.
+        // New uploaded script resets both speed and position.
         scrollPos = 0;
         currentSpeed = 0;
         isScrolling = false;
-        voiceTargetScroll = 0;
-        voiceHasTarget = false;
+        resetVoiceController(true);
 
         saveState();
       };
@@ -822,13 +837,19 @@
 
       prepareCanvasAndText();
 
-      // Do not use reset button logic here. Draw immediately.
-      scrollPos = 0;
+      // Start position depends on mode.
+      // Manual mode: show a few lines near the bottom.
+      // Voice mode: first line starts just below the highlighted read bar.
+      if (state.voiceMode) {
+        scrollPos = getVoiceStartScroll();
+      } else {
+        scrollPos = 0;
+      }
+
       isScrolling = false;
       currentSpeed = 0;
-      voiceTargetScroll = 0;
-      voiceHasTarget = false;
 
+      resetVoiceController(false);
       syncVoiceListening();
       updateVoiceUI();
 
@@ -851,15 +872,15 @@
     }
 
     function resetScriptPositionKeepSpeed() {
-      // Reset should keep speed exactly as currently set.
-      scrollPos = 0;
-      voiceTargetScroll = 0;
-      voiceHasTarget = false;
+      // Reset position, but preserve manual speed as requested.
+      scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
+
+      resetVoiceController(false);
       drawCanvasFrame();
 
       if (state.voiceMode && recognition) {
         stopVoiceListening();
-        setTimeout(syncVoiceListening, 100);
+        setTimeout(syncVoiceListening, 120);
       }
     }
 
@@ -878,7 +899,7 @@
       lineHeight = Math.round(state.textSize * 1.45);
       focusY = canvasH * (state.focusOffset / 100);
 
-      // Show approximately 3 lines near the bottom at start.
+      // Manual mode starting position: show approximately 3 lines near the bottom.
       startY = canvasH - (lineHeight * 3);
 
       const left = canvasW * (state.indent / 100);
@@ -930,11 +951,27 @@
       const dt = Math.min((now - lastTime) / 1000, 0.05);
       lastTime = now;
 
-      if (state.voiceMode && isListening && voiceHasTarget) {
-        const diff = voiceTargetScroll - scrollPos;
-        scrollPos += diff * Math.min(1, dt * 5);
-        if (Math.abs(diff) < 1) {
-          scrollPos = voiceTargetScroll;
+      if (state.voiceMode && isListening) {
+        if (voiceHasTarget) {
+          const error = voiceTargetScroll - scrollPos;
+
+          // Base forward speed from speech rate plus correction toward target.
+          const correctionVelocity = error * voiceCorrectionGain;
+          let velocity = voiceVelocity + correctionVelocity;
+
+          // Clamp for smoothness.
+          velocity = Math.max(-voiceMaxVelocity * 0.35, Math.min(voiceMaxVelocity, velocity));
+
+          scrollPos += velocity * dt;
+        } else {
+          // Lost place: keep drifting using the last speech velocity.
+          voiceVelocity *= voiceLostDriftDecay;
+
+          if (voiceVelocity < voiceMinVelocity) {
+            voiceVelocity = voiceMinVelocity;
+          }
+
+          scrollPos += voiceVelocity * dt;
         }
       } else if (isScrolling && currentSpeed !== 0) {
         scrollPos += currentSpeed * pixelsPerSecondPerSpeedUnit * dt;
@@ -1050,30 +1087,127 @@
       els.voiceToggleBtn.classList.toggle("voice-on", state.voiceMode && isListening);
     }
 
+    function getVoiceStartScroll() {
+      // We want line 0 just below the focus/read bar.
+      // screenY = startY + lineY - scrollPos
+      // line0 screenY should be focusY + a little below the bar.
+      const desiredFirstLineY = focusY + state.focusHeight / 2 + lineHeight * 0.35;
+      return Math.max(0, startY - desiredFirstLineY);
+    }
+
+    function resetVoiceController(resetSpeed = true) {
+      voiceTargetScroll = scrollPos;
+      voiceHasTarget = false;
+      voiceVelocity = 0;
+      voiceLastResultTime = 0;
+      voiceLastMatchedLine = 0;
+      voiceLastTranscriptWordCount = 0;
+      voiceLostSince = 0;
+
+      if (resetSpeed) {
+        currentSpeed = 0;
+      }
+    }
+
+    function countWords(text) {
+      const trimmed = String(text || "").trim();
+      if (!trimmed) return 0;
+      return trimmed.split(/\s+/).length;
+    }
+
+    function normaliseForSpeech(text) {
+      return String(text || "")
+        .toLowerCase()
+        .replace(/[^\w\s']/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function findBestSpeechMatch(transcript) {
+      const script = normaliseForSpeech(state.text);
+      const spoken = normaliseForSpeech(transcript);
+
+      if (!spoken || !script) return -1;
+
+      // Try the full spoken phrase first.
+      let idx = script.lastIndexOf(spoken);
+      if (idx !== -1) return idx;
+
+      // If full phrase fails, try the last 8, then 6, then 4, then 3 words.
+      const words = spoken.split(/\s+/);
+      for (const size of [8, 6, 4, 3]) {
+        if (words.length < size) continue;
+
+        const phrase = words.slice(-size).join(" ");
+        idx = script.lastIndexOf(phrase);
+
+        if (idx !== -1) return idx;
+      }
+
+      return -1;
+    }
+
     function handleSpeechResult(event) {
       if (!state.voiceMode) return;
 
-      let phrase = "";
+      let transcript = "";
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
-        phrase += event.results[i][0].transcript + " ";
+        transcript += event.results[i][0].transcript + " ";
       }
 
-      phrase = phrase.trim().toLowerCase();
-      if (!phrase) return;
+      transcript = transcript.trim();
+      if (!transcript) return;
 
-      const script = state.text.toLowerCase();
-      const index = script.lastIndexOf(phrase);
-      if (index === -1) {
-        // If it loses place, continue manual-like drift if already scrolling.
-        if (!isScrolling && currentSpeed !== 0) {
-          isScrolling = true;
+      const now = performance.now();
+      const wordCount = countWords(transcript);
+
+      // Estimate how quickly the speaker is currently speaking.
+      if (voiceLastResultTime > 0) {
+        const dt = Math.max(0.1, (now - voiceLastResultTime) / 1000);
+        const wordDelta = Math.max(0, wordCount - voiceLastTranscriptWordCount);
+
+        if (wordDelta > 0) {
+          const wordsPerSecond = wordDelta / dt;
+          const estimatedVelocity = wordsPerSecond * voicePixelsPerWord;
+
+          // Smooth velocity estimate.
+          voiceVelocity = voiceVelocity * 0.7 + estimatedVelocity * 0.3;
+          voiceVelocity = Math.max(voiceMinVelocity, Math.min(voiceMaxVelocity, voiceVelocity));
         }
+      }
+
+      voiceLastResultTime = now;
+      voiceLastTranscriptWordCount = wordCount;
+
+      const matchIndex = findBestSpeechMatch(transcript);
+
+      if (matchIndex === -1) {
+        // Recognition heard something but we cannot locate it.
+        // Keep drifting at last velocity rather than stopping.
+        if (!voiceLostSince) voiceLostSince = now;
+        voiceHasTarget = false;
         return;
       }
 
-      const lineIndex = estimateLineIndexFromCharIndex(index);
-      const lineCenterScriptY = lineIndex * lineHeight + lineHeight / 2;
-      voiceTargetScroll = Math.max(0, Math.min(maxScroll, startY + lineCenterScriptY - focusY));
+      voiceLostSince = 0;
+
+      const matchedLine = estimateLineIndexFromCharIndex(matchIndex);
+      voiceLastMatchedLine = matchedLine;
+
+      const matchedLineCenterScriptY = matchedLine * lineHeight + lineHeight / 2;
+
+      // Predict a little ahead based on current speech velocity.
+      const predictedAheadPixels = voiceVelocity * voicePredictionSeconds;
+
+      voiceTargetScroll = Math.max(
+        0,
+        Math.min(
+          maxScroll,
+          startY + matchedLineCenterScriptY + predictedAheadPixels - focusY
+        )
+      );
+
       voiceHasTarget = true;
       isScrolling = true;
     }
