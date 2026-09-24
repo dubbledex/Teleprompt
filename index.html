@@ -109,7 +109,7 @@
       <div>
         <h1 class="text-3xl font-bold text-white">Canvas Teleprompter</h1>
         <p class="text-slate-400 text-sm mt-1">
-          Smooth canvas scrolling with remote controls and optional line-by-line voice follow.
+          Smooth canvas scrolling with remote controls and optional voice follow.
         </p>
       </div>
 
@@ -211,7 +211,7 @@
             </div>
 
             <p class="text-xs text-slate-400 leading-relaxed">
-              Voice mode follows line-by-line. It waits, listens, advances gently near the end of a line, and only jumps if speech is more than one line away.
+              Voice mode scrolls continuously and corrects only when recognised words are plausible for the current reading position.
             </p>
           </div>
 
@@ -324,16 +324,16 @@
   <script>
     "use strict";
 
-    const STORAGE_KEY = "canvas_teleprompter_voice_line_by_line_v2";
+    const STORAGE_KEY = "canvas_teleprompter_voice_plausible_v3";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     const defaultState = {
       text:
         "Welcome to the Canvas Teleprompter.\n\n" +
-        "This version uses line-by-line voice follow.\n\n" +
-        "In voice mode, it listens to the words on the current line. When it hears words near the end of that line, it scrolls gently to the next line and stops.\n\n" +
-        "It should never automatically scroll backwards toward the top.\n\n" +
-        "If it misses audio, it waits. If it later hears text more than one line away, it jumps to that matched line.\n\n" +
+        "This version has improved voice follow logic.\n\n" +
+        "Voice mode scrolls slowly forward while listening.\n\n" +
+        "If it hears words halfway through a line, it targets roughly halfway between that line and the next line.\n\n" +
+        "It will not jump far down the script unless enough time has passed for a fast speaker to plausibly reach that point.\n\n" +
         "Remote controls:\n" +
         "- PageDown or Next speeds up gently\n" +
         "- PageUp or Previous slows down gently\n" +
@@ -371,7 +371,8 @@
     let canvasH = 0;
 
     let lines = [];
-    let normalisedLines = [];
+    let lineWords = [];
+    let lineCharStarts = [];
     let lineHeight = 0;
     let startY = 0;
     let focusY = 0;
@@ -386,12 +387,14 @@
     let recognition = null;
     let isListening = false;
 
-    // Voice line-by-line controller.
+    // Voice controller.
     let voiceCurrentLine = 0;
-    let voiceScrollTarget = 0;
-    let voiceIsMovingToLine = false;
-    let voiceLastHeardAt = 0;
-    let voiceSeenWordsOnLine = new Set();
+    let voiceTargetScroll = 0;
+    let voiceHasTarget = false;
+    let voiceLastMatchedLine = 0;
+    let voiceLastMatchedAt = 0;
+    let voiceSessionStartedAt = 0;
+    let voiceEstimatedWordsRead = 0;
 
     let captureAction = null;
 
@@ -401,10 +404,17 @@
     // Voice tuning.
     const voiceLineSpacingMultiplier = 1.8;
     const manualLineSpacingMultiplier = 1.45;
-    const voiceAdvanceSpeedPxPerSecond = 75;
-    const voiceJumpThresholdLines = 1;
-    const voiceEndOfLineRatio = 0.62;
-    const voiceMinWordsBeforeAdvance = 2;
+
+    const voiceCreepPxPerSecond = 14;
+    const voiceTargetEase = 4.5;
+    const voiceMaxCatchupPxPerSecond = 95;
+
+    // Plausibility: expected fast speaking rate.
+    const voiceFastWordsPerSecond = 4.2;
+    const voicePlausibilityLineGrace = 1.2;
+    const voiceLocalSearchWindow = 3;
+    const voiceMinLocalScore = 0.24;
+    const voiceMinGlobalScore = 0.45;
 
     const els = {};
 
@@ -912,7 +922,9 @@
 
       ctx.font = `${state.textSize}px Arial, Helvetica, sans-serif`;
       lines = wrapText(state.text || "", textWidth);
-      normalisedLines = lines.map(line => normaliseForSpeech(line));
+
+      lineWords = lines.map(line => splitWords(line));
+      calculateLineCharStarts();
 
       const lastLineIndex = Math.max(0, lines.length - 1);
       const lastLineCenterScriptY = lastLineIndex * lineHeight + lineHeight / 2;
@@ -951,6 +963,16 @@
       }
 
       return result;
+    }
+
+    function calculateLineCharStarts() {
+      lineCharStarts = [];
+      let total = 0;
+
+      for (const line of lines) {
+        lineCharStarts.push(total);
+        total += line.length + 1;
+      }
     }
 
     function animationLoop(now) {
@@ -1055,6 +1077,8 @@
         try {
           recognition.start();
           isListening = true;
+          voiceSessionStartedAt = performance.now();
+          voiceLastMatchedAt = voiceSessionStartedAt;
         } catch {
           isListening = true;
         }
@@ -1088,39 +1112,47 @@
 
     function resetVoiceController() {
       voiceCurrentLine = 0;
-      voiceScrollTarget = getVoiceLineScrollTarget(0);
-      voiceIsMovingToLine = false;
-      voiceLastHeardAt = 0;
-      voiceSeenWordsOnLine = new Set();
+      voiceTargetScroll = getVoiceProgressScrollTarget(0, 0);
+      voiceHasTarget = false;
+      voiceLastMatchedLine = 0;
+      voiceLastMatchedAt = performance.now();
+      voiceSessionStartedAt = voiceLastMatchedAt;
+      voiceEstimatedWordsRead = 0;
     }
 
-    function getVoiceLineScrollTarget(lineIndex) {
+    function getLineScrollTarget(lineIndex) {
       const safeIndex = Math.max(0, Math.min(lines.length - 1, lineIndex));
       const lineCenterScriptY = safeIndex * lineHeight + lineHeight / 2;
       return Math.max(0, Math.min(maxScroll, startY + lineCenterScriptY - focusY));
     }
 
+    function getVoiceProgressScrollTarget(lineIndex, progress) {
+      const current = getLineScrollTarget(lineIndex);
+      const next = getLineScrollTarget(Math.min(lines.length - 1, lineIndex + 1));
+      const clampedProgress = Math.max(0, Math.min(1, progress));
+      return current + (next - current) * clampedProgress;
+    }
+
     function updateVoiceScroll(dt) {
-      if (!voiceIsMovingToLine) {
-        // Wait, do not drift automatically.
-        return;
+      // Continuous slow creep while listening.
+      let desired = scrollPos + voiceCreepPxPerSecond * dt;
+
+      if (voiceHasTarget) {
+        desired = Math.max(desired, voiceTargetScroll);
       }
 
-      const diff = voiceScrollTarget - scrollPos;
-
-      // Never auto-scroll backwards toward the top.
-      if (diff <= 0) {
-        scrollPos = Math.max(scrollPos, voiceScrollTarget);
-        voiceIsMovingToLine = false;
-        return;
+      // Never auto-scroll backwards.
+      if (desired < scrollPos) {
+        desired = scrollPos;
       }
 
-      const step = voiceAdvanceSpeedPxPerSecond * dt;
-      scrollPos += Math.min(step, diff);
+      const diff = desired - scrollPos;
+      const maxStep = voiceMaxCatchupPxPerSecond * dt;
 
-      if (Math.abs(voiceScrollTarget - scrollPos) < 1) {
-        scrollPos = voiceScrollTarget;
-        voiceIsMovingToLine = false;
+      scrollPos += Math.min(diff * Math.min(1, dt * voiceTargetEase), maxStep);
+
+      if (diff < 1 && voiceHasTarget) {
+        scrollPos = Math.max(scrollPos, desired);
       }
     }
 
@@ -1147,130 +1179,142 @@
         transcript += event.results[i][0].transcript + " ";
       }
 
-      transcript = normaliseForSpeech(transcript);
-      if (!transcript) return;
-
-      voiceLastHeardAt = performance.now();
-
       const spokenWords = splitWords(transcript);
       if (!spokenWords.length) return;
 
-      const matchedLine = findBestLineMatch(spokenWords);
+      const match = findPlausibleLineAndProgress(spokenWords);
+      if (!match) return;
 
-      if (matchedLine === -1) {
-        // Missed audio: wait.
+      const { lineIndex, progress } = match;
+
+      // Never go backwards.
+      if (lineIndex < voiceCurrentLine) return;
+
+      const now = performance.now();
+
+      if (lineIndex > voiceCurrentLine + 1) {
+        // Only jump if the line is plausible by elapsed speech time.
+        if (!isLineJumpPlausible(lineIndex, now)) {
+          return;
+        }
+
+        voiceCurrentLine = lineIndex;
+        voiceTargetScroll = getVoiceProgressScrollTarget(lineIndex, progress);
+        scrollPos = voiceTargetScroll;
+        voiceHasTarget = true;
+        voiceLastMatchedLine = lineIndex;
+        voiceLastMatchedAt = now;
         return;
       }
 
-      // If recogniser locates speech more than 1 line away, jump there.
-      if (Math.abs(matchedLine - voiceCurrentLine) > voiceJumpThresholdLines) {
-        voiceCurrentLine = matchedLine;
-        voiceSeenWordsOnLine = new Set();
-        voiceScrollTarget = getVoiceLineScrollTarget(voiceCurrentLine);
-        scrollPos = voiceScrollTarget;
-        voiceIsMovingToLine = false;
-        return;
-      }
-
-      // Do not go backwards automatically.
-      if (matchedLine < voiceCurrentLine) {
-        return;
-      }
-
-      voiceCurrentLine = matchedLine;
-
-      updateSeenWordsForCurrentLine(spokenWords);
-
-      if (shouldAdvanceFromLine()) {
-        advanceVoiceLine();
-      }
+      voiceCurrentLine = Math.max(voiceCurrentLine, lineIndex);
+      voiceTargetScroll = getVoiceProgressScrollTarget(voiceCurrentLine, progress);
+      voiceHasTarget = true;
+      voiceLastMatchedLine = voiceCurrentLine;
+      voiceLastMatchedAt = now;
     }
 
-    function findBestLineMatch(spokenWords) {
-      // Search from current line onwards primarily.
-      const searchStart = Math.max(0, voiceCurrentLine - 1);
-      const searchEnd = Math.min(lines.length - 1, voiceCurrentLine + 4);
+    function findPlausibleLineAndProgress(spokenWords) {
+      const now = performance.now();
+      const maxPlausibleLine = getMaxPlausibleLine(now);
 
-      let bestLine = -1;
-      let bestScore = 0;
+      const searchStart = voiceCurrentLine;
+      const searchEnd = Math.min(
+        lines.length - 1,
+        Math.max(voiceCurrentLine + voiceLocalSearchWindow, maxPlausibleLine)
+      );
+
+      let best = null;
 
       for (let i = searchStart; i <= searchEnd; i++) {
-        const lineWords = splitWords(normalisedLines[i]);
-        if (!lineWords.length) continue;
+        const result = scoreLineProgress(i, spokenWords);
+        if (!result) continue;
 
-        let score = 0;
-
-        for (const word of spokenWords) {
-          if (lineWords.includes(word)) score++;
-        }
-
-        const weightedScore = score / Math.max(1, lineWords.length);
-
-        if (weightedScore > bestScore) {
-          bestScore = weightedScore;
-          bestLine = i;
+        if (!best || result.score > best.score) {
+          best = {
+            lineIndex: i,
+            score: result.score,
+            progress: result.progress
+          };
         }
       }
 
-      // Require a modest match so random speech doesn't move the script.
-      if (bestScore >= 0.25) return bestLine;
+      if (best && best.score >= voiceMinLocalScore) {
+        return best;
+      }
 
-      // Wider search only when local search fails.
-      for (let i = 0; i < lines.length; i++) {
-        const lineWords = splitWords(normalisedLines[i]);
-        if (!lineWords.length) continue;
+      // Decoy protection: global search is allowed only up to plausible line.
+      let globalBest = null;
+      for (let i = voiceCurrentLine; i <= maxPlausibleLine && i < lines.length; i++) {
+        const result = scoreLineProgress(i, spokenWords);
+        if (!result) continue;
 
-        let score = 0;
-        for (const word of spokenWords) {
-          if (lineWords.includes(word)) score++;
-        }
-
-        const weightedScore = score / Math.max(1, lineWords.length);
-
-        if (weightedScore > bestScore) {
-          bestScore = weightedScore;
-          bestLine = i;
+        if (!globalBest || result.score > globalBest.score) {
+          globalBest = {
+            lineIndex: i,
+            score: result.score,
+            progress: result.progress
+          };
         }
       }
 
-      return bestScore >= 0.4 ? bestLine : -1;
+      if (globalBest && globalBest.score >= voiceMinGlobalScore) {
+        return globalBest;
+      }
+
+      return null;
     }
 
-    function updateSeenWordsForCurrentLine(spokenWords) {
-      const currentLineWords = splitWords(normalisedLines[voiceCurrentLine]);
+    function scoreLineProgress(lineIndex, spokenWords) {
+      const words = lineWords[lineIndex] || [];
+      if (!words.length) return null;
 
-      for (const word of spokenWords) {
-        if (currentLineWords.includes(word)) {
-          voiceSeenWordsOnLine.add(word);
+      let matchedPositions = [];
+
+      for (const spoken of spokenWords) {
+        const pos = words.indexOf(spoken);
+        if (pos !== -1) {
+          matchedPositions.push(pos);
         }
       }
+
+      if (!matchedPositions.length) return null;
+
+      const uniquePositions = [...new Set(matchedPositions)].sort((a, b) => a - b);
+      const score = uniquePositions.length / Math.max(1, words.length);
+
+      const furthestWordIndex = uniquePositions[uniquePositions.length - 1];
+      const progress = (furthestWordIndex + 1) / Math.max(1, words.length);
+
+      return { score, progress };
     }
 
-    function shouldAdvanceFromLine() {
-      const currentLineWords = splitWords(normalisedLines[voiceCurrentLine]);
+    function getMaxPlausibleLine(now) {
+      const elapsed = Math.max(0, (now - voiceSessionStartedAt) / 1000);
+      const plausibleWords = elapsed * voiceFastWordsPerSecond;
+      let accumulated = 0;
+      let maxLine = 0;
 
-      if (!currentLineWords.length) return true;
-
-      const seenCount = voiceSeenWordsOnLine.size;
-      const lineWordCount = currentLineWords.length;
-
-      // End-of-line trigger: heard enough words from this line.
-      if (seenCount >= Math.max(voiceMinWordsBeforeAdvance, Math.ceil(lineWordCount * voiceEndOfLineRatio))) {
-        return true;
+      for (let i = 0; i < lineWords.length; i++) {
+        accumulated += Math.max(1, lineWords[i].length);
+        if (accumulated <= plausibleWords + averageWordsPerLine() * voicePlausibilityLineGrace) {
+          maxLine = i;
+        } else {
+          break;
+        }
       }
 
-      // Also advance if the last few spoken words include the last word of the line.
-      const lastLineWord = currentLineWords[currentLineWords.length - 1];
-      return voiceSeenWordsOnLine.has(lastLineWord) && seenCount >= voiceMinWordsBeforeAdvance;
+      return Math.max(voiceCurrentLine + 1, maxLine);
     }
 
-    function advanceVoiceLine() {
-      if (voiceCurrentLine >= lines.length - 1) return;
+    function isLineJumpPlausible(targetLine, now) {
+      return targetLine <= getMaxPlausibleLine(now);
+    }
 
-      voiceCurrentLine++;
-      voiceSeenWordsOnLine = new Set();
-      voiceScrollTarget = getVoiceLineScrollTarget(voiceCurrentLine);
-      voiceIsMovingToLine = true;
+    function averageWordsPerLine() {
+      if (!lineWords.length) return 6;
+      const total = lineWords.reduce((sum, words) => sum + words.length, 0);
+      return Math.max(1, total / lineWords.length);
     }
 
     document.addEventListener("DOMContentLoaded", init);
