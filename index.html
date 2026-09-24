@@ -6,97 +6,159 @@
   <title>Pro Voice Teleprompter</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
-    html, body { min-height: 100%; overscroll-behavior: none; }
+    html, body { min-height: 100%; overscroll-behavior: none; background-color: #0f172a; }
     body.prompt-lock { overflow: hidden !important; position: fixed !important; width: 100% !important; height: 100% !important; }
     input[type="color"] { -webkit-appearance: none; border: none; padding: 0; overflow: hidden; }
     #prompterCanvas { display: block; width: 100vw; height: 100vh; }
-    .voice-pulsing { animation: pulse-green 1.5s infinite; border-color: #4ade80 !important; background: rgba(16, 185, 129, 0.2) !important; }
-    @keyframes pulse-green { 0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(74, 222, 128, 0); } 100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } }
-    /* iPad Touch Optimizations */
+    
+    /* Active State for Buttons */
+    .btn-active {
+      background-color: rgba(59, 130, 246, 0.2) !important;
+      border-color: #3b82f6 !important;
+      color: #60a5fa !important;
+      font-weight: 800 !important;
+    }
+
+    .voice-pulsing { 
+      animation: pulse-green 1.5s infinite; 
+      border-color: #4ade80 !important; 
+      background: rgba(16, 185, 129, 0.2) !important; 
+      color: #4ade80 !important;
+    }
+    @keyframes pulse-green { 
+      0% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0.7); } 
+      70% { box-shadow: 0 0 0 15px rgba(74, 222, 128, 0); } 
+      100% { box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); } 
+    }
+    
     .touch-target { min-height: 44px; min-width: 44px; }
   </style>
 </head>
-<body class="bg-slate-950 text-slate-100">
+<body class="text-slate-100 font-sans">
 
   <!-- SETUP PAGE -->
   <main id="setupPage" class="max-w-7xl mx-auto p-4 md:p-8">
-    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-5 mb-6">
+    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-6 mb-8">
       <div>
-        <h1 class="text-3xl font-bold">Pro Voice Teleprompter</h1>
+        <h1 class="text-3xl font-bold text-white">Pro Voice Teleprompter</h1>
         <p class="text-slate-400 text-sm mt-1">Smooth auto-scroll with drift recovery. Optimized for iPad + Bluetooth Remote.</p>
       </div>
-      <div class="flex flex-col sm:flex-row gap-2">
-        <button id="clearSettingsBtn" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 font-semibold touch-target">Reset Settings</button>
-        <button id="startPromptBtn" class="px-6 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 font-bold shadow-lg touch-target">Start Prompting</button>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button id="clearSettingsBtn" class="px-5 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold transition touch-target">Reset All</button>
+        <button id="startPromptBtn" class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg shadow-blue-900/50 transition transform hover:-translate-y-0.5 touch-target">
+          <i class="fa-solid fa-play mr-2"></i> Start Prompting
+        </button>
       </div>
     </header>
 
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-      <!-- SETTINGS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <!-- SETTINGS COLUMN -->
       <section class="lg:col-span-5 space-y-6">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
-          <h2 class="text-xl font-bold mb-4">Display</h2>
-          <div class="grid grid-cols-2 gap-3 mb-5">
-            <button id="flipHBtn" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 font-semibold touch-target">Mirror H</button>
-            <button id="flipVBtn" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-700 font-semibold touch-target">Flip V</button>
+        
+        <!-- Display Settings -->
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
+          <h2 class="text-xl font-bold mb-5 text-white flex items-center gap-2"><i class="fa-solid fa-sliders text-blue-400"></i> Display</h2>
+          <div class="grid grid-cols-2 gap-4 mb-6">
+            <button id="flipHBtn" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 transition font-semibold touch-target flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrows-left-right"></i> Mirror H
+            </button>
+            <button id="flipVBtn" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 transition font-semibold touch-target flex items-center justify-center gap-2">
+              <i class="fa-solid fa-arrows-up-down"></i> Flip V
+            </button>
           </div>
-          <div class="space-y-4">
-            <label class="block"><div class="flex justify-between text-sm mb-1"><span>Text Size</span><strong id="textSizeLabel" class="text-blue-400">48px</strong></div><input id="textSizeInput" type="range" min="20" max="120" value="48" class="w-full accent-blue-500 h-3"></label>
-            <label class="block"><div class="flex justify-between text-sm mb-1"><span>Margins</span><strong id="indentLabel" class="text-blue-400">15%</strong></div><input id="indentInput" type="range" min="0" max="45" value="15" class="w-full accent-blue-500 h-3"></label>
-            <div class="grid grid-cols-2 gap-3">
-              <label class="block text-sm"><span class="block mb-1 text-slate-400">Text Color</span><input id="textColorInput" type="color" value="#ffffff" class="w-full h-10 rounded bg-slate-800"></label>
-              <label class="block text-sm"><span class="block mb-1 text-slate-400">Background</span><input id="bgColorInput" type="color" value="#000000" class="w-full h-10 rounded bg-slate-800"></label>
+          <div class="space-y-5">
+            <label class="block">
+              <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Text Size</span><strong id="textSizeLabel" class="text-blue-400">48px</strong></div>
+              <input id="textSizeInput" type="range" min="20" max="120" value="48" class="w-full accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </label>
+            <label class="block">
+              <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Side Margins</span><strong id="indentLabel" class="text-blue-400">15%</strong></div>
+              <input id="indentInput" type="range" min="0" max="45" value="15" class="w-full accent-blue-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </label>
+            <div class="grid grid-cols-2 gap-4">
+              <label class="block text-sm">
+                <span class="block mb-2 text-slate-400">Text Color</span>
+                <input id="textColorInput" type="color" value="#ffffff" class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer">
+              </label>
+              <label class="block text-sm">
+                <span class="block mb-2 text-slate-400">Background</span>
+                <input id="bgColorInput" type="color" value="#000000" class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer">
+              </label>
             </div>
           </div>
         </div>
 
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-xl font-bold">Focus Bar</h2>
-            <label class="flex items-center gap-2 text-sm"><input id="focusEnabledInput" type="checkbox" class="w-5 h-5 accent-emerald-500" checked /> On</label>
+        <!-- Focus Bar Settings -->
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
+          <div class="flex items-center justify-between mb-5">
+            <h2 class="text-xl font-bold text-white flex items-center gap-2"><i class="fa-solid fa-eye text-emerald-400"></i> Focus Bar</h2>
+            <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
+              <input id="focusEnabledInput" type="checkbox" class="w-5 h-5 accent-emerald-500 rounded" checked />
+              <span class="text-slate-300">Enabled</span>
+            </label>
           </div>
-          <div class="space-y-4">
-            <label class="block"><div class="flex justify-between text-sm mb-1"><span>Height</span><strong id="focusHeightLabel" class="text-emerald-400">90px</strong></div><input id="focusHeightInput" type="range" min="30" max="200" value="90" class="w-full accent-emerald-500 h-3"></label>
-            <label class="block"><div class="flex justify-between text-sm mb-1"><span>Position</span><strong id="focusOffsetLabel" class="text-emerald-400">35%</strong></div><input id="focusOffsetInput" type="range" min="10" max="80" value="35" class="w-full accent-emerald-500 h-3"></label>
+          <div class="space-y-5">
+            <label class="block">
+              <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Bar Height</span><strong id="focusHeightLabel" class="text-emerald-400">90px</strong></div>
+              <input id="focusHeightInput" type="range" min="30" max="200" value="90" class="w-full accent-emerald-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </label>
+            <label class="block">
+              <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Vertical Position</span><strong id="focusOffsetLabel" class="text-emerald-400">35%</strong></div>
+              <input id="focusOffsetInput" type="range" min="10" max="80" value="35" class="w-full accent-emerald-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+            </label>
           </div>
         </div>
 
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5">
-          <h2 class="text-xl font-bold mb-4">Voice Control</h2>
-          <div class="p-4 bg-slate-800/50 rounded-xl border border-slate-600 mb-4">
-            <div class="flex items-center justify-between mb-2">
-              <span class="font-bold text-emerald-400 flex items-center gap-2"><i class="fa-solid fa-microphone"></i> Auto-Scroll Voice</span>
+        <!-- Voice & Controls -->
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 backdrop-blur-sm">
+          <h2 class="text-xl font-bold mb-4 text-white flex items-center gap-2"><i class="fa-solid fa-microphone text-emerald-400"></i> Voice & Remote</h2>
+          
+          <div class="p-4 bg-slate-900/50 rounded-xl border border-slate-600 mb-6">
+            <div class="flex items-center justify-between mb-3">
+              <span class="font-bold text-emerald-400 flex items-center gap-2">Auto-Scroll Voice</span>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" id="voiceModeInput" class="sr-only peer">
-                <div class="w-14 h-7 bg-slate-700 rounded-full peer peer-checked:bg-emerald-500 transition-colors"></div>
-                <div class="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform peer-checked:translate-x-7"></div>
+                <div class="w-14 h-7 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-500"></div>
               </label>
             </div>
             <p class="text-xs text-slate-400 leading-relaxed">
               <strong>Smart Drift Mode:</strong> Starts scrolling when you speak. If you pause, it continues at your last speed. If it gets lost, it waits for your voice to re-align smoothly.
-              <br><span class="text-amber-500 mt-1 block">Note: Requires Chrome/Edge. Not supported on iPad Safari.</span>
+              <br><span class="text-amber-500 mt-1 block"><i class="fa-solid fa-circle-exclamation"></i> Note: Requires Chrome/Edge. Not supported on iPad Safari.</span>
             </p>
           </div>
           
-          <label class="block mb-4"><div class="flex justify-between text-sm mb-1"><span>Base Manual Speed</span><strong id="startSpeedLabel" class="text-violet-400">4</strong></div><input id="startSpeedInput" type="range" min="1" max="20" value="4" class="w-full accent-violet-500 h-3"></label>
+          <label class="block mb-6">
+            <div class="flex justify-between text-sm mb-2 text-slate-300"><span>Base Manual Speed</span><strong id="startSpeedLabel" class="text-violet-400">4</strong></div>
+            <input id="startSpeedInput" type="range" min="1" max="20" value="4" class="w-full accent-violet-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+          </label>
           
-          <div class="flex gap-2 mb-4">
-            <button id="presenterPresetBtn" class="flex-1 px-3 py-2 rounded-lg bg-emerald-700 font-semibold text-sm touch-target">Remote Preset</button>
-            <button id="resetBindingsBtn" class="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 text-sm touch-target">Reset Keys</button>
+          <div class="grid grid-cols-2 gap-3 mb-4">
+            <button id="presenterPresetBtn" class="px-3 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold text-sm transition touch-target shadow-lg shadow-emerald-900/20">
+              <i class="fa-solid fa-wand-magic-sparkles mr-1"></i> Remote Preset
+            </button>
+            <button id="resetBindingsBtn" class="px-3 py-3 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 text-sm transition touch-target">
+              Reset Keys
+            </button>
           </div>
+          <div id="keyStatus" class="text-xs text-slate-500 text-center">Current Bindings: PageUp/PageDown (Default)</div>
         </div>
       </section>
 
-      <!-- SCRIPT -->
+      <!-- SCRIPT EDITOR -->
       <section class="lg:col-span-7">
-        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-5 h-full flex flex-col">
-          <div class="flex justify-between items-end mb-4 gap-2">
-            <label class="block flex-grow"><span class="block text-sm text-slate-400 mb-1">Script File</span><input id="fileNameInput" type="text" value="script.txt" class="w-full rounded-lg bg-slate-950 border border-slate-700 px-3 py-2"></label>
-            <button id="importBtn" class="px-4 py-2 rounded-lg bg-slate-800 border border-slate-700 font-semibold touch-target">Import</button>
-            <input id="fileInput" type="file" accept=".txt,.rtf" class="hidden" />
-            <button id="exportTxtBtn" class="px-4 py-2 rounded-lg bg-blue-700 font-semibold touch-target">Export</button>
+        <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-6 h-full flex flex-col backdrop-blur-sm">
+          <div class="flex justify-between items-end mb-4 gap-3">
+            <label class="block flex-grow">
+              <span class="block text-sm text-slate-400 mb-2">Script File Name</span>
+              <input id="fileNameInput" type="text" value="teleprompter-script.txt" class="w-full rounded-lg bg-slate-900 border border-slate-600 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none transition">
+            </label>
+            <div class="flex gap-2">
+              <button id="importBtn" class="px-4 py-2.5 rounded-lg bg-slate-700 hover:bg-slate-600 border border-slate-600 font-semibold transition touch-target">Import</button>
+              <input id="fileInput" type="file" accept=".txt,.rtf" class="hidden" />
+              <button id="exportTxtBtn" class="px-4 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-600 font-semibold transition touch-target">Export</button>
+            </div>
           </div>
-          <textarea id="scriptInput" class="flex-grow rounded-xl bg-slate-950 border border-slate-700 p-4 font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+          <textarea id="scriptInput" class="flex-grow rounded-xl bg-slate-900 border border-slate-600 p-4 font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none text-slate-200"></textarea>
         </div>
       </section>
     </div>
@@ -107,14 +169,16 @@
     <canvas id="prompterCanvas"></canvas>
     
     <!-- Controls -->
-    <button id="mobileExitBtn" class="fixed top-4 right-4 z-40 px-4 py-2 rounded-full bg-red-600/90 text-white font-bold shadow-lg touch-target">Exit</button>
+    <button id="mobileExitBtn" class="fixed top-4 right-4 z-40 px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg transition touch-target">
+      <i class="fa-solid fa-xmark mr-1"></i> Exit
+    </button>
     
     <!-- Voice Status Indicator -->
-    <button id="voiceToggleBtn" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 px-5 py-2 rounded-full bg-slate-800/80 border border-slate-600 backdrop-blur font-bold text-sm flex items-center gap-2 touch-target transition-all duration-300">
+    <button id="voiceToggleBtn" class="fixed top-4 left-1/2 -translate-x-1/2 z-40 px-6 py-2.5 rounded-full bg-slate-800/80 border border-slate-600 backdrop-blur font-bold text-sm flex items-center gap-2 touch-target transition-all duration-300 hover:bg-slate-700">
       <i class="fa-solid fa-microphone-slash text-slate-400"></i> <span id="voiceStatusText">Voice Off</span>
     </button>
 
-    <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-0 hover:opacity-100 transition-opacity z-30 flex gap-4">
+    <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-0 hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
       <span>Speed: <strong id="speedHud" class="text-blue-400">0</strong></span>
       <span class="text-slate-600">|</span>
       <span id="modeHud" class="text-emerald-400">Manual</span>
@@ -123,18 +187,25 @@
 
   <script>
     "use strict";
-    const STORAGE_KEY = "pro_voice_prompt_v2";
+    const STORAGE_KEY = "pro_voice_prompt_fixed_v3";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     
-    // State
-    let state = {
-      text: "Welcome to Pro Voice Teleprompter.\n\nThis version features smooth 'Drift Mode'.\n\n1. Enable Voice Mode.\n2. Start speaking.\n3. The text will accelerate smoothly to match your pace.\n4. If you pause, it keeps scrolling at your last speed.\n5. If it gets lost, just keep speaking; it will gently re-align.",
-      fileName: "script.txt",
-      flipH: false, flipV: false,
-      textSize: 48, indent: 15,
-      textColor: "#ffffff", bgColor: "#000000", bgOpacity: 100,
-      focusEnabled: true, focusHeight: 90, focusOffset: 35,
+    // Default State with Instructions
+    const defaultState = {
+      text: "Welcome to Pro Voice Teleprompter.\n\nThis version features smooth 'Drift Mode' for natural scrolling.\n\nHOW TO USE:\n1. Edit this text box with your script.\n2. Use the sliders to adjust text size and margins.\n3. Connect your Bluetooth remote (PageUp/PageDown mode recommended).\n4. Click 'Start Prompting' to begin.\n\nVOICE MODE (Chrome/Edge Only):\n- Toggle the 'Auto-Scroll Voice' switch above.\n- Start speaking clearly. The text will accelerate to match your pace.\n- If you pause, the text will drift slowly rather than stopping abruptly.\n- If you skip a paragraph, just keep speaking; the app will smoothly re-align to your voice.\n\nEnjoy your presentation!",
+      fileName: "teleprompter-script.txt",
+      flipH: false, 
+      flipV: false,
+      textSize: 48, 
+      indent: 15,
+      textColor: "#ffffff", 
+      bgColor: "#000000", 
+      bgOpacity: 100,
+      focusEnabled: true, 
+      focusHeight: 90, 
+      focusOffset: 35,
       voiceMode: false,
+      startSpeed: 4,
       bindings: {
         speedUp: { code: "PageDown", key: "PageDown" },
         speedDown: { code: "PageUp", key: "PageUp" },
@@ -144,11 +215,11 @@
       }
     };
 
-    // Engine Variables
+    let state = { ...defaultState };
     let recognition = null;
     let isListening = false;
-    let lastValidSpeed = 0; // The speed we were going when voice was last heard
-    let targetScrollPos = 0; // Where the voice wants us to be
+    let lastValidSpeed = 0; 
+    let targetScrollPos = 0; 
     let currentScrollPos = 0;
     let maxScroll = 0;
     let lines = [];
@@ -159,9 +230,8 @@
     let lastTime = 0;
     
     // Smoothing Constants
-    const SMOOTHING_FACTOR = 0.08; // How quickly it catches up (0.01 = slow, 0.2 = jerky)
-    const DRIFT_FACTOR = 0.96; // How much speed decays when silent (1.0 = infinite drift, 0.0 = stop immediately)
-    const MIN_VOICE_SPEED = 0.5; // Minimum speed to consider "moving"
+    const SMOOTHING_FACTOR = 0.08; 
+    const DRIFT_FACTOR = 0.96; 
 
     const els = {};
 
@@ -169,65 +239,162 @@
       cacheEls();
       loadState();
       renderSetup();
+      updateButtonStyles(); // Ensure buttons reflect loaded state
       
       // Init Speech
       if (SpeechRecognition) {
         recognition = new SpeechRecognition();
         recognition.continuous = true;
         recognition.interimResults = true;
-        recognition.maxAlternatives = 1;
         recognition.onresult = handleSpeech;
-        recognition.onerror = (e) => { console.log("Speech error", e.error); if(e.error === "not-allowed") alert("Microphone access denied."); };
-        recognition { ...state.bindings, ...JSON.parse(s).bindings } }; } catch(e){}
+        recognition.onerror = (e) => { 
+          console.log("Speech error", e.error); 
+          if(e.error === "not-allowed") alert("Microphone access denied. Please allow permissions."); 
+        };
+        recognition.onend = () => { 
+          if (state.voiceMode && isListening) { 
+            try { recognition.start(); } catch(e){} 
+          } else { 
+            isListening = false; 
+            updateVoiceUI(); 
+          } 
+        };
+      } else {
+        els.voiceModeInput.disabled = true;
+        els.voiceModeInput.checked = false;
+        state.voiceMode = false;
+        els.voiceStatusText.textContent = "Not Supported";
+      }
+
+      wireUI();
+    }
+
+    function cacheEls() {
+      const ids = ["setupPage","prompterPage","prompterCanvas","startPromptBtn","clearSettingsBtn","flipHBtn","flipVBtn","textSizeInput","textSizeLabel","indentInput","indentLabel","textColorInput","bgColorInput","focusEnabledInput","focusHeightInput","focusHeightLabel","focusOffsetInput","focusOffsetLabel","voiceModeInput","startSpeedInput","startSpeedLabel","presenterPresetBtn","resetBindingsBtn","keyStatus","scriptInput","fileNameInput","importBtn","fileInput","exportTxtBtn","mobileExitBtn","voiceToggleBtn","voiceStatusText","speedHud","modeHud"];
+      ids.forEach(id => els[id] = document.getElementById(id));
+      canvas = els.prompterCanvas;
+      ctx = canvas.getContext("2d", { alpha: false });
+    }
+
+    function loadState() {
+      const s = localStorage.getItem(STORAGE_KEY);
+      if (s) {
+        try { 
+          const parsed = JSON.parse(s);
+          // Merge carefully to avoid losing new fields if version changes
+          state = { ...defaultState, ...parsed, bindings: { ...defaultState.bindings, ...(parsed.bindings || {}) } };
+        } catch(e) {
+          console.error("Save file corrupted, resetting.");
+          state = { ...defaultState };
+        }
+      }
     }
     function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
     function renderSetup() {
       els.scriptInput.value = state.text;
       els.fileNameInput.value = state.fileName;
-      els.textSizeInput.value = state.textSize; els.textSizeLabel.textContent = state.textSize + "px";
-      els.indentInput.value = state.indent; els.indentLabel.textContent = state.indent + "%";
-      els.textColorInput.value = state.textColor; els.bgColorInput.value = state.bgColor;
+      
+      els.textSizeInput.value = state.textSize; 
+      els.textSizeLabel.textContent = state.textSize + "px";
+      
+      els.indentInput.value = state.indent; 
+      els.indentLabel.textContent = state.indent + "%";
+      
+      els.textColorInput.value = state.textColor; 
+      els.bgColorInput.value = state.bgColor;
+      
       els.focusEnabledInput.checked = state.focusEnabled;
-      els.focusHeightInput.value = state.focusHeight; els.focusHeightLabel.textContent = state.focusHeight + "px";
-      els.focusOffsetInput.value = state.focusOffset; els.focusOffsetLabel.textContent = state.focusOffset + "%";
+      els.focusHeightInput.value = state.focusHeight; 
+      els.focusHeightLabel.textContent = state.focusHeight + "px";
+      
+      els.focusOffsetInput.value = state.focusOffset; 
+      els.focusOffsetLabel.textContent = state.focusOffset + "%";
+      
       els.voiceModeInput.checked = state.voiceMode;
-      els.startSpeedInput.value = state.startSpeed; els.startSpeedLabel.textContent = state.startSpeed;
+      
+      els.startSpeedInput.value = state.startSpeed; 
+      els.startSpeedLabel.textContent = state.startSpeed;
+      
+      updateKeyStatusText();
+    }
+
+    function updateButtonStyles() {
+      // Toggle visual active class based on state
+      if (state.flipH) els.flipHBtn.classList.add("btn-active"); else els.flipHBtn.classList.remove("btn-active");
+      if (state.flipV) els.flipVBtn.classList.add("btn-active"); else els.flipVBtn.classList.remove("btn-active");
+    }
+
+    function updateKeyStatusText() {
+      const up = state.bindings.speedUp.key || state.bindings.speedUp.code;
+      const down = state.bindings.speedDown.key || state.bindings.speedDown.code;
+      els.keyStatus.textContent = `Speed Up: ${up} | Slow Down: ${down}`;
     }
 
     function wireUI() {
       els.startPromptBtn.onclick = startPrompter;
       els.mobileExitBtn.onclick = stopPrompter;
-      els.clearSettingsBtn.onclick = () => { localStorage.removeItem(STORAGE_KEY); location.reload(); };
       
-      els.flipHBtn.onclick = () => { state.flipH = !state.flipH; saveState(); };
-      els.flipVBtn.onclick = () => { state.flipV = !state.flipV; saveState(); };
+      els.clearSettingsBtn.onclick = () => { 
+        if(confirm("Reset all settings and script to default?")) {
+          localStorage.removeItem(STORAGE_KEY); 
+          location.reload(); 
+        }
+      };
       
-      const bindRange = (inp, key, lbl, suffix) => inp.oninput = () => { state[key] = +inp.value; lbl.textContent = state[key] + suffix; saveState(); prepareLines(); draw(); };
+      els.flipHBtn.onclick = () => { 
+        state.flipH = !state.flipH; 
+        saveState(); 
+        updateButtonStyles(); 
+      };
+      
+      els.flipVBtn.onclick = () => { 
+        state.flipV = !state.flipV; 
+        saveState(); 
+        updateButtonStyles(); 
+      };
+      
+      const bindRange = (inp, key, lbl, suffix) => {
+        inp.oninput = () => { 
+          state[key] = +inp.value; 
+          lbl.textContent = state[key] + suffix; 
+          saveState(); 
+          if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); }
+        };
+      };
+      
       bindRange(els.textSizeInput, "textSize", els.textSizeLabel, "px");
       bindRange(els.indentInput, "indent", els.indentLabel, "%");
       bindRange(els.focusHeightInput, "focusHeight", els.focusHeightLabel, "px");
       bindRange(els.focusOffsetInput, "focusOffset", els.focusOffsetLabel, "%");
       
-      els.textColorInput.oninput = () => { state.textColor = els.textColorInput.value; saveState(); draw(); };
-      els.bgColorInput.oninput = () => { state.bgColor = els.bgColorInput.value; saveState(); draw(); };
-      els.focusEnabledInput.onchange = () => { state.focusEnabled = els.focusEnabledInput.checked; saveState(); draw(); };
+      els.textColorInput.oninput = () => { state.textColor = els.textColorInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
+      els.bgColorInput.oninput = () => { state.bgColor = els.bgColorInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
+      
+      els.focusEnabledInput.onchange = () => { state.focusEnabled = els.focusEnabledInput.checked; saveState(); if (!els.prompterPage.classList.contains("hidden")) draw(); };
       
       els.voiceModeInput.onchange = () => { 
         state.voiceMode = els.voiceModeInput.checked; 
         saveState(); 
-        if (state.voiceMode && !isListening && recognition) { try { recognition.start(); isListening = true; } catch(e){} }
-        if (!state.voiceMode && isListening && recognition) { recognition.stop(); isListening = false; }
+        if (state.voiceMode && !isListening && recognition) { 
+          try { recognition.start(); isListening = true; } catch(e){} 
+        }
+        if (!state.voiceMode && isListening && recognition) { 
+          recognition.stop(); isListening = false; lastValidSpeed = 0; 
+        }
         updateVoiceUI();
       };
 
       els.voiceToggleBtn.onclick = () => {
-        if (!recognition) return alert("Browser not supported");
+        if (!recognition) return alert("Voice recognition not supported in this browser.");
         state.voiceMode = !state.voiceMode;
         els.voiceModeInput.checked = state.voiceMode;
         saveState();
-        if (state.voiceMode) { try { recognition.start(); isListening = true; } catch(e){} }
-        else { recognition.stop(); isListening = false; lastValidSpeed = 0; }
+        if (state.voiceMode) { 
+          try { recognition.start(); isListening = true; } catch(e){} 
+        } else { 
+          recognition.stop(); isListening = false; lastValidSpeed = 0; 
+        }
         updateVoiceUI();
       };
 
@@ -241,22 +408,42 @@
           reset: { code: "KeyR", key: "r" },
           exit: { code: "Escape", key: "Escape" }
         };
-        saveState(); alert("Remote Preset Applied (PageUp/PageDown)");
+        saveState(); 
+        updateKeyStatusText();
+        alert("Remote Preset Applied:\nSpeed Up = Page Down / Right Arrow\nSlow Down = Page Up / Left Arrow");
       };
 
-      els.resetBindingsBtn.onclick = () => { location.reload(); };
+      els.resetBindingsBtn.onclick = () => { 
+        state.bindings = { ...defaultState.bindings };
+        saveState();
+        updateKeyStatusText();
+        alert("Key bindings reset to default.");
+      };
+
       els.importBtn.onclick = () => els.fileInput.click();
       els.fileInput.onchange = (e) => {
         const f = e.target.files[0]; if(!f) return;
         const r = new FileReader();
-        r.onload = (ev) => { state.text = ev.target.result; els.scriptInput.value = state.text; saveState(); prepareLines(); draw(); };
+        r.onload = (ev) => { 
+          let text = ev.target.result;
+          if (f.name.toLowerCase().endsWith('.rtf')) {
+            // Simple RTF strip
+            text = text.replace(/\\par[d]?/g, "\n").replace(/\\[a-z]+-?\d* ?/g, "").replace(/[{}]/g, "");
+          }
+          state.text = text; 
+          els.scriptInput.value = state.text; 
+          saveState(); 
+          if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); }
+        };
         r.readAsText(f);
       };
+      
       els.exportTxtBtn.onclick = () => {
         const b = new Blob([state.text], {type:"text/plain"});
         const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = state.fileName; a.click();
       };
-      els.scriptInput.oninput = () => { state.text = els.scriptInput.value; saveState(); prepareLines(); draw(); };
+      
+      els.scriptInput.oninput = () => { state.text = els.scriptInput.value; saveState(); if (!els.prompterPage.classList.contains("hidden")) { prepareLines(); draw(); } };
       els.fileNameInput.oninput = () => { state.fileName = els.fileNameInput.value; saveState(); };
 
       window.onresize = () => { if (!els.prompterPage.classList.contains("hidden")) { resizeCanvas(); prepareLines(); draw(); } };
@@ -264,12 +451,23 @@
       // Key Controls
       window.onkeydown = (e) => {
         if (els.prompterPage.classList.contains("hidden")) return;
-        if (e.code === state.bindings.exit.code) stopPrompter();
+        
+        // Prevent default scrolling for arrow keys/space
+        if(["Space","ArrowUp","ArrowDown","PageUp","PageDown"].includes(e.code)) e.preventDefault();
+
+        if (e.code === state.bindings.exit.code || e.key === "Escape") stopPrompter();
         if (e.code === state.bindings.reset.code) { currentScrollPos = 0; lastValidSpeed = 0; }
+        
         if (e.code === state.bindings.toggle.code) { 
-           if(state.voiceMode) { state.voiceMode = false; els.voiceModeInput.checked = false; recognition.stop(); isListening = false; updateVoiceUI(); }
-           else { lastValidSpeed = lastValidSpeed > 0 ? 0 : state.startSpeed; }
+           if(state.voiceMode) { 
+             state.voiceMode = false; els.voiceModeInput.checked = false; 
+             if(recognition) recognition.stop(); isListening = false; 
+             updateVoiceUI(); saveState();
+           } else { 
+             lastValidSpeed = lastValidSpeed > 0.1 ? 0 : state.startSpeed; 
+           }
         }
+        
         if (!state.voiceMode) {
           if (e.code === state.bindings.speedUp.code) lastValidSpeed += 0.5;
           if (e.code === state.bindings.speedDown.code) lastValidSpeed -= 0.5;
@@ -284,15 +482,21 @@
       if (state.voiceMode && isListening) {
         btn.classList.add("voice-pulsing");
         txt.textContent = "Listening...";
-        txt.className = "text-emerald-300 font-bold";
-        icon.className = "fa-solid fa-microphone text-emerald-300";
+        icon.className = "fa-solid fa-microphone";
         els.modeHud.textContent = "Voice Auto-Scroll";
-        els.modeHud.className = "text-emerald-400";
+        els.modeHud.className = "text-emerald-400 font-bold";
+      } else if (state.voiceMode && !isListening) {
+        btn.classList.remove("voice-pulsing");
+        txt.textContent = "Waiting...";
+        txt.className = "text-amber-400 font-bold";
+        icon.className = "fa-solid fa-microphone-slash text-amber-400";
+        els.modeHud.textContent = "Voice (Paused)";
+        els.modeHud.className = "text-amber-400";
       } else {
         btn.classList.remove("voice-pulsing");
-        txt.textContent = state.voiceMode ? "Waiting..." : "Voice Off";
-        txt.className = state.voiceMode ? "text-amber-400" : "text-slate-400";
-        icon.className = state.voiceMode ? "fa-solid fa-microphone-slash text-amber-400" : "fa-solid fa-microphone-slash text-slate-400";
+        txt.textContent = "Voice Off";
+        txt.className = "text-slate-400";
+        icon.className = "fa-solid fa-microphone-slash text-slate-400";
         els.modeHud.textContent = "Manual";
         els.modeHud.className = "text-slate-400";
       }
@@ -307,11 +511,18 @@
       prepareLines();
       currentScrollPos = 0;
       lastValidSpeed = 0;
+      targetScrollPos = 0;
       
       if (state.voiceMode && recognition) {
-        try { recognition.start(); isListening = true; } catch(e) { state.voiceMode = false; }
+        try { recognition.start(); isListening = true; } catch(e) { 
+          console.error(e);
+          state.voiceMode = false; 
+          els.voiceModeInput.checked = false;
+          saveState();
+        }
       }
       updateVoiceUI();
+      updateButtonStyles(); // Ensure flip states are visual
       
       lastTime = performance.now();
       loop();
@@ -327,18 +538,19 @@
     }
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth * window.devicePixelRatio;
-      canvas.height = window.innerHeight * window.devicePixelRatio;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = window.innerWidth * dpr;
+      canvas.height = window.innerHeight * dpr;
       canvas.style.width = window.innerWidth + "px";
       canvas.style.height = window.innerHeight + "px";
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
 
     function prepareLines() {
-      ctx.font = `${state.textSize}px Arial`;
+      ctx.font = `${state.textSize}px Arial, sans-serif`;
       lineHeight = state.textSize * 1.4;
-      topPad = window.innerHeight * 0.6; // Start text lower
-      const width = window.innerWidth * (1 - state.indent/50);
+      topPad = window.innerHeight * 0.65; 
+      const width = window.innerWidth * (1 - (state.indent / 50));
       const words = state.text.split(/\s+/);
       lines = [];
       let currentLine = "";
@@ -354,8 +566,8 @@
       });
       if (currentLine) lines.push(currentLine);
       
-      maxScroll = (lines.length * lineHeight) + topPad - (window.innerHeight * 0.8);
-      if (maxScroll < 0) maxScroll = 0;
+      const contentHeight = (lines.length * lineHeight) + topPad;
+      maxScroll = Math.max(0, contentHeight - (window.innerHeight * 0.8));
     }
 
     function handleSpeech(e) {
@@ -368,15 +580,11 @@
       
       if (!final.trim()) return;
 
-      // Find match in script
       const lowerScript = state.text.toLowerCase();
       const lowerFinal = final.toLowerCase();
-      
-      // Simple heuristic: find the index of the spoken words in the full text
       const matchIndex = lowerScript.lastIndexOf(lowerFinal);
       
       if (matchIndex !== -1) {
-        // Calculate which line this corresponds to roughly
         let charCount = 0;
         let targetLineIdx = 0;
         for (let i = 0; i < lines.length; i++) {
@@ -387,52 +595,40 @@
           charCount += lines[i].length + 1;
         }
 
-        // Calculate target position to center this line in the focus bar
         const focusY = (window.innerHeight * state.focusOffset) / 100;
         targetScrollPos = (targetLineIdx * lineHeight) + topPad - focusY + (lineHeight/2);
         
-        // Clamp
         if (targetScrollPos < 0) targetScrollPos = 0;
         if (targetScrollPos > maxScroll) targetScrollPos = maxScroll;
 
-        // Update Speed based on distance (Proportional Control)
         const diff = targetScrollPos - currentScrollPos;
-        let newSpeed = diff * 0.15; // Gain factor
+        let newSpeed = diff * 0.15; 
         
-        // Limit max speed
         if (newSpeed > 15) newSpeed = 15;
-        if (newSpeed < -5) newSpeed = -5; // Allow slight reverse
+        if (newSpeed < -5) newSpeed = -5; 
         
         lastValidSpeed = newSpeed;
       }
     }
 
     function loop(now) {
-      const dt = (now - lastTime) / 16.66; // Normalize to 60fps
+      const dt = (now - lastTime) / 16.66; 
       lastTime = now;
 
       if (state.voiceMode && isListening) {
-        // VOICE MODE: Smoothly interpolate towards target
-        // If we have a target, move towards it
         if (Math.abs(targetScrollPos - currentScrollPos) > 1) {
            currentScrollPos += (targetScrollPos - currentScrollPos) * SMOOTHING_FACTOR * dt;
         } else {
-           // We are aligned. Maintain a tiny drift or stop?
-           // Let's maintain a tiny drift based on last speed to keep flow if voice pauses briefly
            currentScrollPos += lastValidSpeed * 0.5 * dt; 
         }
       } else {
-        // MANUAL MODE: Use lastValidSpeed directly (set by keys)
         currentScrollPos += lastValidSpeed * dt;
       }
 
-      // Boundaries
       if (currentScrollPos < 0) { currentScrollPos = 0; lastValidSpeed = 0; }
       if (currentScrollPos > maxScroll) { currentScrollPos = maxScroll; lastValidSpeed = 0; }
 
-      // Drift Decay (if silent for too long, slow down gently instead of stopping hard)
       if (state.voiceMode && isListening && Math.abs(targetScrollPos - currentScrollPos) < 5) {
-         // If aligned and silent, decay speed gently
          lastValidSpeed *= DRIFT_FACTOR;
          if (Math.abs(lastValidSpeed) < 0.1) lastValidSpeed = 0;
       }
@@ -455,7 +651,7 @@
       ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
       ctx.translate(-window.innerWidth / 2, -window.innerHeight / 2);
 
-      ctx.font = `${state.textSize}px Arial`;
+      ctx.font = `${state.textSize}px Arial, sans-serif`;
       ctx.textBaseline = "top";
       ctx.fillStyle = state.textColor;
 
@@ -463,30 +659,25 @@
       const highlightStart = focusY - (state.focusHeight/2);
       const highlightEnd = focusY + (state.focusHeight/2);
 
-      // Draw Lines
       for (let i = 0; i < lines.length; i++) {
         const y = topPad + (i * lineHeight) - currentScrollPos;
-        
-        // Skip if off screen
         if (y > window.innerHeight || y + lineHeight < 0) continue;
 
-        // Highlight logic: Is this line inside the focus bar?
         const lineCenter = y + (lineHeight/2);
         if (state.voiceMode && isListening && lineCenter >= highlightStart && lineCenter <= highlightEnd) {
           ctx.fillStyle = "#facc15"; // Yellow highlight
           ctx.globalAlpha = 1.0;
           ctx.fillText(lines[i], window.innerWidth * (state.indent/100), y);
           ctx.fillStyle = state.textColor;
-          ctx.globalAlpha = 0.6; // Dim other text slightly? Optional.
+          ctx.globalAlpha = 1.0;
         } else {
           ctx.globalAlpha = 1.0;
           ctx.fillText(lines[i], window.innerWidth * (state.indent/100), y);
         }
       }
 
-      // Focus Bar Overlay
       if (state.focusEnabled) {
-        ctx.fillStyle = `rgba(16, 185, 129, 0.15)`; // Green transparent
+        ctx.fillStyle = `rgba(16, 185, 129, 0.15)`;
         ctx.fillRect(0, highlightStart, window.innerWidth, state.focusHeight);
         ctx.strokeStyle = `rgba(16, 185, 129, 0.4)`;
         ctx.lineWidth = 2;
@@ -499,6 +690,7 @@
       ctx.restore();
     }
 
+    // Initialize
     init();
   </script>
 </body>
