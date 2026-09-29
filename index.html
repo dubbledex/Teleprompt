@@ -389,33 +389,29 @@
     let recognition = null;
     let isListening = false;
 
-    // --- NEW VOICE ENGINE STATE ---
-    let voiceCurrentLine = 0;       // The line we believe the user is on
-    let voiceLineProgress = 0.0;    // 0.0 to 1.0, how far through the current line + gap to next
-    let voiceLastMatchTime = 0;     // Timestamp of last successful word match
-    let voiceWordsSpokenTotal = 0;  // Cumulative words spoken in session
-    
-    // Rolling window for WPM calculation
-    let voiceRecentWords = [];      // Array of { time, cumulativeCount }
-    let voiceCurrentWPM = 150;      // Default starting WPM
-    let voiceLastValidScroll = 0;   // Safety fallback
-    let voiceSessionStartTime = 0;
+    // --- REENGINEERED VOICE PROPULSION ENGINE ---
+    let voiceCurrentLine = 0;         // The line currently high-lighted yellow
+    let voiceLineProgress = 0.0;      // Approximate percent through current line (0-1)
+    let voiceWordsSpokenTotal = 0;    // Absolute global recognized words
+    let voiceSessionStartTime = 0;    // Time session first started
+    let voiceLastMatchTime = 0;       // Timestamp of the last successful recognition match
+    let voiceSpokenBuffer = [];       // Rolling array of late word tokens parsed
+    let voiceRecentWords = [];        // Rolling sliding window for WPM calculations [{time, count}]
+    let voiceCurrentWPM = 140;        // Start with healthy default speaking rate
+    let voiceLastValidScroll = 0;     // Safe baseline tracker
 
     let captureAction = null;
 
     const remoteSpeedStep = 0.25;
     const pixelsPerSecondPerSpeedUnit = 18;
 
-    // Voice tuning constants
+    // Voice spacing structures
     const voiceLineSpacingMultiplier = 1.8;
     const manualLineSpacingMultiplier = 1.45;
     
-    // Max speed cap (pixels per second) to prevent runaway scrolling
-    const voiceMaxSpeedPxPerSec = 800; 
-    // How aggressively we correct position (Higher = snaps to focus bar faster)
-    const voicePositionCorrectionFactor = 3.5; 
-    // Minimum WPM to assume scrolling should happen
-    const voiceMinWPM = 60;
+    // Safety thresholds
+    const voiceMaxSpeedPxPerSec = 750; 
+    const voiceMinWPM = 50;
 
     const els = {};
 
@@ -534,15 +530,7 @@
 
     function updateFlipButtons() {
       els.flipHBtn.classList.toggle("btn-active", !!state.flipH);
-      els.flipVBtn.classList.toggle("btn-active", !!state.flipV);
-    }
-
-    function renderKeyBindings() {
-      const buttonMap = {
-        speedUp: "btn-bind-speedUp",
-        speedDown: "btn-bind-speedDown",
-        toggle: "btn-bind-toggle",
-        reset: "btn-bind-reset",
+      els.flipVBtn.btn-bind-reset",
         exit: "btn-bind-exit"
       };
 
@@ -889,7 +877,6 @@
     }
 
     function resetScriptPositionKeepSpeed() {
-      // Reset position, but preserve manual speed as requested.
       scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
       resetVoiceController();
       drawCanvasFrame();
@@ -916,7 +903,6 @@
       lineHeight = Math.round(state.textSize * spacingMultiplier);
       focusY = canvasH * (state.focusOffset / 100);
 
-      // Manual mode starting position: show approximately 3 lines near the bottom.
       startY = canvasH - (lineHeight * 3);
 
       const left = canvasW * (state.indent / 100);
@@ -931,7 +917,6 @@
       const lastLineIndex = Math.max(0, lines.length - 1);
       const lastLineCenterScriptY = lastLineIndex * lineHeight + lineHeight / 2;
 
-      // Continue until final line reaches read/focus bar.
       maxScroll = Math.max(0, startY + lastLineCenterScriptY - focusY);
     }
 
@@ -1025,7 +1010,7 @@
         const y = startY + i * lineHeight - scrollPos;
 
         if (state.voiceMode && i === voiceCurrentLine) {
-          ctx.fillStyle = "#facc15";
+          ctx.fillStyle = "#facc15"; // Highlight matching spoken line yellow
         } else {
           ctx.fillStyle = state.textColor;
         }
@@ -1061,7 +1046,7 @@
     }
 
     function updateHud() {
-      els.speedHud.textContent = currentSpeed.toFixed(2);
+      els.speedHud.textContent = currentSpeed.toFixed(0);
       els.wpmHud.textContent = Math.round(voiceCurrentWPM);
       els.modeHud.textContent = state.voiceMode && isListening
         ? `Voice (Line ${Math.min(lines.length, voiceCurrentLine + 1)})`
@@ -1110,8 +1095,7 @@
     }
 
     function getVoiceStartScroll() {
-      // Line 0 starts just below the read/focus bar.
-      const desiredFirstLineY = focusY + state.focusHeight / 2 + lineHeight * 0.35;
+      const desiredFirstLineY = focusY - lineHeight / 2;
       return Math.max(0, startY - desiredFirstLineY);
     }
 
@@ -1122,11 +1106,12 @@
       voiceWordsSpokenTotal = 0;
       voiceSessionStartTime = performance.now();
       voiceRecentWords = [];
-      voiceCurrentWPM = 150; // Default human speaking rate
+      voiceSpokenBuffer = [];
+      voiceCurrentWPM = 140; 
       voiceLastValidScroll = getVoiceStartScroll();
     }
 
-    // Calculate the ideal scroll position to center a specific line IN THE FOCUS BAR
+    // Calculate the ideal scroll position to align a line's exact center with the center of the highlight focus bar
     function getIdealScrollForLine(lineIndex) {
       const safeIndex = Math.max(0, Math.min(lines.length - 1, lineIndex));
       const lineCenterScriptY = safeIndex * lineHeight + lineHeight / 2;
@@ -1134,7 +1119,7 @@
       return Math.max(0, Math.min(maxScroll, target));
     }
 
-    // Calculate total words from line 0 to line N (inclusive)
+    // Calculate total layout words from line 0 representing speaking baseline
     function getCumulativeWordsUpTo(lineIndex) {
       let count = 0;
       for (let i = 0; i <= lineIndex; i++) {
@@ -1143,59 +1128,63 @@
       return count;
     }
 
+    // --- NEW PHYSICS SCROLL ENGINE ---
     function updateVoiceScroll(dt) {
+      if (lines.length === 0) return;
+
       const now = performance.now();
 
-      // 1. Calculate Target Scroll Position based on EXACT voice progress
-      // We want the specific point in the line (e.g. 60% through) to be in the focus bar.
-      // However, since lines have uniform height in our layout, we can approximate:
-      // Target = (Start of Current Line) + (Progress * Distance to Next Line)
-      
-      // But to keep it simple and robust:
-      // We calculate the ideal scroll for the CURRENT line index.
-      // Then we add an offset based on how far through the line we are.
-      
-      const baseScroll = getIdealScrollForLine(voiceCurrentLine);
-      
-      // Calculate distance to next line's ideal position
-      const nextLineScroll = getIdealScrollForLine(voiceCurrentLine + 1);
-      const distanceToNext = nextLineScroll - baseScroll;
-      
-      // The target is base + (progress * distance)
-      // If progress is 0.5, we want to be halfway between current line center and next line center.
-      const targetScroll = baseScroll + (voiceLineProgress * distanceToNext);
-
-      // 2. Calculate Error (How far are we from the target?)
-      const error = targetScroll - scrollPos;
-
-      // 3. Determine Speed based on Error and WPM
-      // Base speed from WPM: (WPM / 60) words/sec * lineHeight px/word
-      let baseSpeed = (voiceCurrentWPM / 60) * lineHeight;
-      
-      // Correction speed: If we are far off, we need to move faster to catch up
-      // P-Controller: Speed += Error * Factor
-      const correctionSpeed = error * voicePositionCorrectionFactor;
-      
-      let finalSpeed = baseSpeed + correctionSpeed;
-
-      // Safety: Never scroll backwards
-      if (finalSpeed < 0) {
-        // If correction wants to go back, just slow down to 0, don't reverse
-        finalSpeed = Math.max(0, baseSpeed * 0.5); 
+      // If current line has no spoken content, bridge forward instantly to the next populated line
+      while (voiceCurrentLine < lines.length - 1 && lineWords[voiceCurrentLine].length === 0) {
+        voiceCurrentLine++;
+        voiceLineProgress = 0.0;
       }
 
-      // Cap max speed
-      if (finalSpeed > voiceMaxSpeedPxPerSec) {
-        finalSpeed = voiceMaxSpeedPxPerSec;
+      // 1. Calculate Target Scroll position representing the exact vocal position
+      const currentLineBaseScroll = getIdealScrollForLine(voiceCurrentLine);
+      const nextLineBaseScroll = getIdealScrollForLine(voiceCurrentLine + 1);
+      const crossLineDistance = nextLineBaseScroll - currentLineBaseScroll;
+
+      // Map progress through the line directly to actual screen placement
+      const targetScroll = currentLineBaseScroll + (voiceLineProgress * crossLineDistance);
+
+      // 2. Adjust dynamic scrolling velocity based on distance error
+      const scrollGap = targetScroll - scrollPos;  // positive means user is reading ahead (prompter needs to catch up)
+
+      // Estimate WPM dynamic guidance velocity (words-per-second * lineHeight scaling per word)
+      const avgWordsPerLine = Math.max(1, lineWords[voiceCurrentLine]?.length || 6);
+      const baseWPS = voiceCurrentWPM / 60;
+      const estimatedLineDuration = avgWordsPerLine / baseWPS; 
+      const estimatedScrollingBaseSpeed = crossLineDistance / Math.max(0.2, estimatedLineDuration);
+
+      let wantedSpeed = estimatedScrollingBaseSpeed;
+
+      if (scrollGap > 10) {
+        // User is speaking ahead of current focus bar! Accelerate strongly to catch up.
+        const catchupForce = 3.5; 
+        wantedSpeed += (scrollGap * catchupForce);
+      } else if (scrollGap < -10) {
+        // Prompter has active line scrolled above the focus bar (Lag / Read offset error)!
+        // Slow speed drastically (or stop completely) so speech matches placement again.
+        wantedSpeed = Math.max(0, estimatedScrollingBaseSpeed + (scrollGap * 4.0));
+      } else {
+        // Very close alignment! Maintain smooth tracking guide speed.
+        wantedSpeed = estimatedScrollingBaseSpeed;
       }
 
-      currentSpeed = finalSpeed;
-      
-      // Apply movement
-      const move = currentSpeed * dt;
-      scrollPos += move;
-      
-      // Safety: Never scroll backwards globally
+      // Hard limits to prevent runaway loops
+      if (wantedSpeed > voiceMaxSpeedPxPerSec) {
+        wantedSpeed = voiceMaxSpeedPxPerSec;
+      }
+
+      // Update current speed smoothly utilizing standard dampening inertia
+      currentSpeed = currentSpeed * 0.82 + wantedSpeed * 0.18;
+
+      // Apply movement step
+      const step = currentSpeed * dt;
+      scrollPos += step;
+
+      // Never drift backward
       if (scrollPos < voiceLastValidScroll) {
         scrollPos = voiceLastValidScroll;
         currentSpeed = 0;
@@ -1217,12 +1206,13 @@
       return clean.split(/\s+/);
     }
 
+    // --- NEW ROBUST PARTIAL SPEECH PROCESSING & CORRECTION ---
     function handleSpeechResult(event) {
       if (!state.voiceMode || !lines.length) return;
 
       let transcript = "";
       
-      // Process results
+      // Pull and aggregate latest interim and final results
       for (let i = event.resultIndex; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript + " ";
       }
@@ -1230,76 +1220,74 @@
       const spokenWords = splitWords(transcript);
       if (!spokenWords.length) return;
 
-      // Find the best matching line
-      const match = findBestLineMatch(spokenWords);
-      
+      // Update spoken circular buffer with last 35 tokens recognized (to ignore older speech filler anomalies)
+      voiceSpokenBuffer = spokenWords.slice(-35);
+
+      // Search local visibility bounds for the highest matching phrase structure
+      const match = findBestLineMatch(voiceSpokenBuffer);
       if (!match) return;
 
-      const { lineIndex, progress, confidence } = match;
+      const { lineIndex, progress } = match;
 
-      // SAFETY: Plausibility Check
+      // SAFETY: Plausibility checks to prevent long loops or duplicate pattern anomalies
       const maxPlausibleLine = getMaxPlausibleLine(performance.now());
-      
       if (lineIndex > maxPlausibleLine) {
-        // Ignore this match, it's physically impossible to be there yet
-        return;
+        return; // Reject jump: speaking rate physical limitation exceeded
       }
 
-      // Update State
       const now = performance.now();
       
-      // Only update if we moved forward or confidence is very high on current line
       if (lineIndex >= voiceCurrentLine) {
         voiceCurrentLine = lineIndex;
-        voiceLineProgress = Math.max(0, Math.min(1, progress)); // Clamp 0-1
+        voiceLineProgress = progress; // Directly sets the precise word progress in line
         voiceLastMatchTime = now;
         
-        // Update WPM Tracking
+        // Calculate WPM Speaking Rate tracking
         const wordsNow = getCumulativeWordsUpTo(lineIndex);
-        const prevWords = voiceWordsSpokenTotal;
-        const deltaWords = wordsNow - prevWords;
+        const deltaWords = wordsNow - voiceWordsSpokenTotal;
         
         if (deltaWords > 0) {
           voiceWordsSpokenTotal = wordsNow;
           voiceRecentWords.push({ time: now, count: wordsNow });
           
-          // Recalculate WPM based on last 5 seconds
-          const windowStart = now - 5000;
-          const recent = voiceRecentWords.filter(e => e.time >= windowStart);
+          // Clear items outside trailing 5-second window
+          const windowLimit = now - 5000;
+          voiceRecentWords = voiceRecentWords.filter(e => e.time >= windowLimit);
           
-          if (recent.length >= 2) {
-            const timeSpan = (recent[recent.length-1].time - recent[0].time) / 1000;
-            const wordSpan = recent[recent.length-1].count - recent[0].count;
-            if (timeSpan > 0.5) {
-              const wpm = (wordSpan / timeSpan) * 60;
-              // Smooth the WPM change
-              voiceCurrentWPM = voiceCurrentWPM * 0.7 + wpm * 0.3;
+          if (voiceRecentWords.length >= 2) {
+            const durationSec = (voiceRecentWords[voiceRecentWords.length - 1].time - voiceRecentWords[0].time) / classList.toggle("btn-active", !!state.flipV);
+    }
+
+    function renderKeyBindings() {
+      const buttonMap = {
+        speedUp: "btn-bind-speedUp",
+        speedDown: "btn-bind-speedDown",
+        toggle: "btn-bind-toggle",
+        reset: "1000;
+            const wordsSpoken = voiceRecentWords[voiceRecentWords.length - 1].count - voiceRecentWords[0].count;
+            if (durationSec > 0.5) {
+              const sampledWPM = (wordsSpoken / durationSec) * 60;
+              // Dampened rolling weight
+              voiceCurrentWPM = (voiceCurrentWPM * 0.75) + (sampledWPM * 0.25);
               if (voiceCurrentWPM < voiceMinWPM) voiceCurrentWPM = voiceMinWPM;
-              if (voiceCurrentWPM > 300) voiceCurrentWPM = 300; // Cap crazy speeds
+              if (voiceCurrentWPM > 280) voiceCurrentWPM = 280; // Peak limits
             }
-          } else if (recent.length === 1 && voiceSessionStartTime > 0) {
-             // Fallback for very start
-             const timeSpan = (now - voiceSessionStartTime) / 1000;
-             if (timeSpan > 1) {
-                const wpm = (wordsNow / timeSpan) * 60;
-                voiceCurrentWPM = voiceCurrentWPM * 0.8 + wpm * 0.2;
-             }
           }
         }
       }
     }
 
-    function findBestLineMatch(spokenWords) {
-      // Search window: current line to current + 5
-      const start = voiceCurrentLine;
-      const end = Math.min(lines.length - 1, voiceCurrentLine + 5);
+    // Searches current window starting to find which script line has higher matching tokens
+    function findBestLineMatch(spokenHistory) {
+      const searchStart = Math.max(0, voiceCurrentLine - 1);
+      const searchEnd = Math.min(lines.length - 1, voiceCurrentLine + 5);
       
       let bestScore = -1;
       let bestLine = -1;
       let bestProgress = 0;
 
-      for (let i = start; i <= end; i++) {
-        const result = calculateLineMatchScore(lineWords[i], spokenWords);
+      for (let i = searchStart; i <= searchEnd; i++) {
+        const result = calculatePhraseMatchScore(lineWords[i], spokenHistory);
         if (result.score > bestScore) {
           bestScore = result.score;
           bestLine = i;
@@ -1307,50 +1295,56 @@
         }
       }
 
-      // Threshold for confidence
-      if (bestScore > 0.3) { // At least 30% of words matched
-        return { lineIndex: bestLine, progress: bestProgress, confidence: bestScore };
+      // Quality evaluation target threshold
+      if (bestScore >= 0.25) { 
+        return { lineIndex: bestLine, progress: bestProgress };
       }
       
       return null;
     }
 
-    function calculateLineMatchScore(lineWordsArr, spokenWords) {
+    // Scores token overlapping mapping index progress 0.0 -> 1.0 based on matches
+    function calculatePhraseMatchScore(lineWordsArr, spokenHistory) {
       if (!lineWordsArr || lineWordsArr.length === 0) {
-        // Empty line? If spoken words exist, maybe we are skipping it.
-        // But usually we want to match text.
-        return { score: 0, progress: 0 };
+        return { score: 0, progress: 0.0 };
       }
       
       let matches = 0;
-      let lastMatchIndex = -1;
-      
-      // Check how many spoken words appear in the line IN ORDER
-      let sIdx = 0;
-      for (let lIdx = 0; lIdx < lineWordsArr.length; lIdx++) {
-        if (sIdx < spokenWords.length && spokenWords[sIdx] === lineWordsArr[lIdx]) {
+      let matchedIndices = [];
+
+      for (let i = 0; i < lineWordsArr.length; i++) {
+        const word = lineWordsArr[i];
+        
+        // Check if word occurs in the sliding spoken buffer
+        if (spokenHistory.includes(word)) {
           matches++;
-          lastMatchIndex = lIdx;
-          sIdx++;
+          matchedIndices.push(i);
         }
       }
+
+      if (matches === 0) {
+        return { score: 0, progress: 0.0 };
+      }
+
+      const score = matches / lineWordsArr.length;
       
-      const score = matches / Math.max(1, spokenWords.length);
-      // Progress is how far through the LINE we are based on the last matched word
-      const progress = (lastMatchIndex + 1) / lineWordsArr.length;
-      
+      // Determine what matching index was identified absolute furthest along inside the script line
+      const furthestWordMatched = Math.max(...matchedIndices);
+      const progress = (furthestWordMatched + 1) / lineWordsArr.length;
+
       return { score, progress };
     }
 
     function getMaxPlausibleLine(now) {
-      // Calculate max words possible since session start
-      const elapsedSec = (now - voiceSessionStartTime) / 1000;
-      const maxWords = elapsedSec * (voiceCurrentWPM * 1.5); // Allow 1.5x burst speed
+      const elapsedSec = Math.max(1, (now - voiceSessionStartTime) / 1000);
       
-      let count = 0;
+      // Allow speaking burst capability limit: 250 WPM default burst
+      const maxAllowedWords = elapsedSec * (Math.max(voiceCurrentWPM, 180) * 1.5 / 60);
+      
+      let runningCount = 0;
       for (let i = 0; i < lines.length; i++) {
-        count += (lineWords[i] ? lineWords[i].length : 0);
-        if (count > maxWords) {
+        runningCount += (lineWords[i] ? lineWords[i].length : 0);
+        if (runningCount > maxAllowedWords) {
           return i;
         }
       }
