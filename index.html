@@ -3,19 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-
   <title>Canvas Teleprompter</title>
-
   <script src="https://cdn.tailwindcss.com"></script>
-
   <style>
-    html,
-    body {
+    html, body {
       min-height: 100%;
       overscroll-behavior: none;
       background: #020617;
     }
-
     body.prompt-lock {
       overflow: hidden !important;
       position: fixed !important;
@@ -23,33 +18,25 @@
       height: 100% !important;
       touch-action: none !important;
     }
-
     input[type="color"] {
       -webkit-appearance: none;
       border: none;
       padding: 0;
       overflow: hidden;
     }
-
     #prompterCanvas {
       display: block;
       width: 100vw;
       height: 100vh;
       background: #000;
     }
-
     .btn-active {
       background-color: rgba(37, 99, 235, 0.3) !important;
       border-color: #3b82f6 !important;
       color: #93c5fd !important;
       font-weight: 800 !important;
     }
-
-    .touch-target {
-      min-height: 44px;
-      min-width: 44px;
-    }
-
+    .touch-target { min-height: 44px; min-width: 44px; }
     .key-row {
       display: flex;
       justify-content: space-between;
@@ -60,7 +47,6 @@
       border-radius: 0.75rem;
       margin-bottom: 0.5rem;
     }
-
     .key-btn {
       background: #1e293b;
       border: 1px solid #475569;
@@ -73,52 +59,47 @@
       text-align: center;
       cursor: pointer;
     }
-
     .key-btn.capturing {
       background: #7f1d1d;
       border-color: #f87171;
       color: #fecaca;
       animation: pulse-red 1s infinite;
     }
-
     @keyframes pulse-red {
-      0% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0.45); }
-      70% { box-shadow: 0 0 0 10px rgba(248, 113, 113, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(248, 113, 113, 0); }
+      0%   { box-shadow: 0 0 0 0   rgba(248,113,113,0.45); }
+      70%  { box-shadow: 0 0 0 10px rgba(248,113,113,0);    }
+      100% { box-shadow: 0 0 0 0   rgba(248,113,113,0);    }
     }
-
     .voice-on {
       border-color: #22c55e !important;
       background: rgba(22, 163, 74, 0.25) !important;
       color: #86efac !important;
       animation: pulse-green 1.5s infinite;
     }
-
     @keyframes pulse-green {
-      0% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.65); }
-      70% { box-shadow: 0 0 0 14px rgba(34, 197, 94, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+      0%   { box-shadow: 0 0 0 0    rgba(34,197,94,0.65); }
+      70%  { box-shadow: 0 0 0 14px rgba(34,197,94,0);    }
+      100% { box-shadow: 0 0 0 0    rgba(34,197,94,0);    }
     }
   </style>
 </head>
 
 <body class="text-slate-100 font-sans">
-  <!-- SETUP PAGE -->
+
+  <!-- ═══════════════════════════════════ SETUP PAGE ═══════════════════════════════════ -->
   <main id="setupPage" class="max-w-7xl mx-auto p-4 md:p-8">
     <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-6 mb-8">
       <div>
         <h1 class="text-3xl font-bold text-white">Canvas Teleprompter</h1>
-        <p class="text-slate-400 text-sm mt-1">
-          Smooth canvas scrolling with remote controls and optional voice follow.
-        </p>
+        <p class="text-slate-400 text-sm mt-1">Smooth canvas scrolling with remote controls and optional voice follow.</p>
       </div>
-
       <div class="flex flex-col sm:flex-row gap-3">
-        <button id="clearSettingsBtn" type="button" class="px-5 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">
+        <button id="clearSettingsBtn" type="button"
+          class="px-5 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">
           Reset All
         </button>
-
-        <button id="startPromptBtn" type="button" class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg touch-target">
+        <button id="startPromptBtn" type="button"
+          class="px-8 py-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-lg touch-target">
           Start Prompting
         </button>
       </div>
@@ -127,144 +108,116 @@
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
       <!-- SETTINGS -->
       <section class="lg:col-span-5 space-y-6">
+
+        <!-- Display -->
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
           <h2 class="text-xl font-bold mb-5">Display</h2>
-
           <div class="grid grid-cols-2 gap-4 mb-6">
-            <button id="flipHBtn" type="button" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">
-              Mirror H
-            </button>
-
-            <button id="flipVBtn" type="button" class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">
-              Flip V
-            </button>
+            <button id="flipHBtn" type="button"
+              class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">Mirror H</button>
+            <button id="flipVBtn" type="button"
+              class="px-4 py-3 rounded-xl bg-slate-800 border border-slate-600 hover:bg-slate-700 font-semibold touch-target">Flip V</button>
           </div>
-
           <div class="space-y-5">
             <label class="block">
               <div class="flex justify-between text-sm mb-2 text-slate-300">
-                <span>Text Size</span>
-                <strong id="textSizeLabel" class="text-blue-400">48px</strong>
+                <span>Text Size</span><strong id="textSizeLabel" class="text-blue-400">48px</strong>
               </div>
               <input id="textSizeInput" type="range" min="20" max="120" value="48" class="w-full accent-blue-500" />
             </label>
-
             <label class="block">
               <div class="flex justify-between text-sm mb-2 text-slate-300">
-                <span>Side Margins</span>
-                <strong id="indentLabel" class="text-blue-400">15%</strong>
+                <span>Side Margins</span><strong id="indentLabel" class="text-blue-400">15%</strong>
               </div>
               <input id="indentInput" type="range" min="0" max="45" value="15" class="w-full accent-blue-500" />
             </label>
-
             <div class="grid grid-cols-2 gap-4">
               <label class="block text-sm">
                 <span class="block mb-2 text-slate-400">Text Color</span>
-                <input id="textColorInput" type="color" value="#ffffff" class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer" />
+                <input id="textColorInput" type="color" value="#ffffff"
+                  class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer" />
               </label>
-
               <label class="block text-sm">
                 <span class="block mb-2 text-slate-400">Background</span>
-                <input id="bgColorInput" type="color" value="#000000" class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer" />
+                <input id="bgColorInput" type="color" value="#000000"
+                  class="w-full h-10 rounded bg-slate-900 border border-slate-600 cursor-pointer" />
               </label>
             </div>
           </div>
         </div>
 
+        <!-- Focus Bar -->
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
           <div class="flex items-center justify-between mb-5">
             <h2 class="text-xl font-bold">Focus Bar</h2>
-
             <label class="flex items-center gap-2 text-sm cursor-pointer select-none">
               <input id="focusEnabledInput" type="checkbox" class="w-5 h-5 accent-emerald-500 rounded" checked />
               <span class="text-slate-300">Enabled</span>
             </label>
           </div>
-
           <div class="space-y-5">
             <label class="block">
               <div class="flex justify-between text-sm mb-2 text-slate-300">
-                <span>Bar Height</span>
-                <strong id="focusHeightLabel" class="text-emerald-400">90px</strong>
+                <span>Bar Height</span><strong id="focusHeightLabel" class="text-emerald-400">90px</strong>
               </div>
               <input id="focusHeightInput" type="range" min="30" max="220" value="90" class="w-full accent-emerald-500" />
             </label>
-
             <label class="block">
               <div class="flex justify-between text-sm mb-2 text-slate-300">
-                <span>Read Bar Position</span>
-                <strong id="focusOffsetLabel" class="text-emerald-400">35%</strong>
+                <span>Read Bar Position</span><strong id="focusOffsetLabel" class="text-emerald-400">35%</strong>
               </div>
               <input id="focusOffsetInput" type="range" min="10" max="80" value="35" class="w-full accent-emerald-500" />
             </label>
           </div>
         </div>
 
+        <!-- Voice & Remote -->
         <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
           <h2 class="text-xl font-bold mb-5">Voice & Remote</h2>
 
           <div class="p-4 bg-slate-950 rounded-xl border border-slate-700 mb-5">
             <div class="flex items-center justify-between mb-3">
               <span class="font-bold text-emerald-400">Auto-Scroll Voice</span>
-
               <input id="voiceModeInput" type="checkbox" class="w-6 h-6 accent-emerald-500" />
             </div>
-
             <p class="text-xs text-slate-400 leading-relaxed">
-              Voice mode calculates scroll speed based on your speaking rate (WPM) and line density. It never jumps; it accelerates and decelerates smoothly.
+              Voice mode scrolls continuously using a phantom cursor that advances at your speaking rate (WPM).
+              Recognition results only move the cursor <em>forward</em> — the scroll always catches up smoothly.
             </p>
           </div>
 
           <label class="block mb-5">
             <div class="flex justify-between text-sm mb-2 text-slate-300">
-              <span>Default Manual Speed</span>
-              <strong id="startSpeedLabel" class="text-violet-400">2</strong>
+              <span>Default Manual Speed</span><strong id="startSpeedLabel" class="text-violet-400">2</strong>
             </div>
             <input id="startSpeedInput" type="range" min="0.5" max="10" step="0.5" value="2" class="w-full accent-violet-500" />
           </label>
 
           <div class="grid grid-cols-2 gap-3 mb-5">
-            <button id="presenterPresetBtn" type="button" class="px-3 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold text-sm touch-target">
+            <button id="presenterPresetBtn" type="button"
+              class="px-3 py-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 font-semibold text-sm touch-target">
               Apply Remote Preset
             </button>
-
-            <button id="resetBindingsBtn" type="button" class="px-3 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm touch-target">
+            <button id="resetBindingsBtn" type="button"
+              class="px-3 py-3 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 text-sm touch-target">
               Reset Keys
             </button>
           </div>
 
           <div class="space-y-2 mb-2">
             <p class="text-xs text-slate-400 uppercase font-bold tracking-wider mb-2">Custom Key Bindings</p>
-
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Speed Up</span>
-              <button class="key-btn" data-bind="speedUp" id="btn-bind-speedUp">PageDown</button>
-            </div>
-
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Slow Down</span>
-              <button class="key-btn" data-bind="speedDown" id="btn-bind-speedDown">PageUp</button>
-            </div>
-
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Start / Stop</span>
-              <button class="key-btn" data-bind="toggle" id="btn-bind-toggle">Space</button>
-            </div>
-
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Reset Script</span>
-              <button class="key-btn" data-bind="reset" id="btn-bind-reset">KeyR</button>
-            </div>
-
-            <div class="key-row">
-              <span class="text-sm text-slate-300">Exit</span>
-              <button class="key-btn" data-bind="exit" id="btn-bind-exit">Escape</button>
-            </div>
+            <div class="key-row"><span class="text-sm text-slate-300">Speed Up</span>
+              <button class="key-btn" data-bind="speedUp"   id="btn-bind-speedUp">PageDown</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Slow Down</span>
+              <button class="key-btn" data-bind="speedDown" id="btn-bind-speedDown">PageUp</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Start / Stop</span>
+              <button class="key-btn" data-bind="toggle"    id="btn-bind-toggle">Space</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Reset Script</span>
+              <button class="key-btn" data-bind="reset"     id="btn-bind-reset">KeyR</button></div>
+            <div class="key-row"><span class="text-sm text-slate-300">Exit</span>
+              <button class="key-btn" data-bind="exit"      id="btn-bind-exit">Escape</button></div>
           </div>
-
-          <p class="text-xs text-slate-500 text-center italic">
-            Click a button, then press your desired key.
-          </p>
+          <p class="text-xs text-slate-500 text-center italic">Click a button, then press your desired key.</p>
         </div>
       </section>
 
@@ -274,154 +227,144 @@
           <div class="flex justify-between items-end mb-4 gap-3">
             <label class="block flex-grow">
               <span class="block text-sm text-slate-400 mb-2">Script File Name</span>
-              <input id="fileNameInput" type="text" value="teleprompter-script.txt" class="w-full rounded-lg bg-slate-950 border border-slate-600 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
+              <input id="fileNameInput" type="text" value="teleprompter-script.txt"
+                class="w-full rounded-lg bg-slate-950 border border-slate-600 px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none" />
             </label>
-
             <div class="flex gap-2">
-              <button id="importBtn" type="button" class="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 font-semibold touch-target">
-                Import
-              </button>
-
+              <button id="importBtn" type="button"
+                class="px-4 py-2.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-600 font-semibold touch-target">Import</button>
               <input id="fileInput" type="file" accept=".txt,.rtf" class="hidden" />
-
-              <button id="exportTxtBtn" type="button" class="px-4 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-600 font-semibold touch-target">
-                Export
-              </button>
+              <button id="exportTxtBtn" type="button"
+                class="px-4 py-2.5 rounded-lg bg-blue-700 hover:bg-blue-600 font-semibold touch-target">Export</button>
             </div>
           </div>
-
-          <textarea id="scriptInput" class="flex-grow rounded-xl bg-slate-950 border border-slate-600 p-4 font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none text-slate-200"></textarea>
+          <textarea id="scriptInput"
+            class="flex-grow rounded-xl bg-slate-950 border border-slate-600 p-4 font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none text-slate-200"></textarea>
         </div>
       </section>
     </div>
   </main>
 
-  <!-- PROMPTER VIEW -->
+  <!-- ═══════════════════════════════════ PROMPTER VIEW ═══════════════════════════════════ -->
   <section id="prompterPage" class="hidden fixed inset-0 z-50 overflow-hidden bg-black">
     <canvas id="prompterCanvas"></canvas>
 
     <div class="fixed top-4 left-0 right-0 z-40 flex justify-between items-start px-4 pointer-events-none">
-      <button id="resetScriptBtn" type="button" class="pointer-events-auto px-5 py-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-white font-bold shadow-lg touch-target">
+      <button id="resetScriptBtn" type="button"
+        class="pointer-events-auto px-5 py-2.5 rounded-full bg-slate-800/90 hover:bg-slate-700 border border-slate-600 text-white font-bold shadow-lg touch-target">
         Reset Script
       </button>
-
-      <button id="voiceToggleBtn" type="button" class="pointer-events-auto px-6 py-2.5 rounded-full bg-slate-800/85 border border-slate-600 backdrop-blur font-bold text-sm touch-target">
+      <button id="voiceToggleBtn" type="button"
+        class="pointer-events-auto px-6 py-2.5 rounded-full bg-slate-800/85 border border-slate-600 backdrop-blur font-bold text-sm touch-target">
         <span id="voiceStatusText">Voice Off</span>
       </button>
-
-      <button id="mobileExitBtn" type="button" class="pointer-events-auto px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg touch-target">
+      <button id="mobileExitBtn" type="button"
+        class="pointer-events-auto px-5 py-2.5 rounded-full bg-red-600/90 hover:bg-red-500 text-white font-bold shadow-lg touch-target">
         Exit
       </button>
     </div>
 
-    <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-100 md:opacity-0 md:hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
-      <span>Speed: <strong id="speedHud" class="text-blue-400">0</strong></span>
+    <div id="hud"
+      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-100 md:opacity-0 md:hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
+      <span>Speed: <strong id="speedHud"  class="text-blue-400">0</strong> px/s</span>
       <span class="text-slate-600">|</span>
-      <span>WPM: <strong id="wpmHud" class="text-emerald-400">0</strong></span>
+      <span>WPM: <strong id="wpmHud" class="text-yellow-400">150</strong></span>
       <span class="text-slate-600">|</span>
       <span id="modeHud" class="text-emerald-400">Manual</span>
     </div>
   </section>
 
+  <!-- ═══════════════════════════════════ SCRIPT ═══════════════════════════════════ -->
   <script>
     "use strict";
 
     const STORAGE_KEY = "canvas_teleprompter_voice_smooth_v5";
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+    // ─── Default saved state ────────────────────────────────────────────────────
     const defaultState = {
       text:
         "Welcome to the Canvas Teleprompter.\n\n" +
-        "This version features advanced smooth voice scrolling.\n\n" +
-        "It calculates your speaking speed (WPM) over a rolling window.\n\n" +
-        "It measures the distance to the next line and adjusts scroll velocity dynamically.\n\n" +
-        "It never jumps. It accelerates and decelerates to keep your voice in the highlight bar.\n\n" +
+        "This version features a phantom-cursor voice engine.\n\n" +
+        "A phantom cursor advances continuously at your speaking rate.\n\n" +
+        "Voice recognition moves the phantom forward whenever it matches a line.\n\n" +
+        "The scroll always chases the phantom smoothly — it never jumps.\n\n" +
+        "Empty lines are treated as short pauses so speed stays natural.\n\n" +
         "Remote controls:\n" +
-        "- PageDown or Next speeds up gently\n" +
-        "- PageUp or Previous slows down gently\n" +
+        "- PageDown speeds up\n" +
+        "- PageUp slows down\n" +
         "- Space starts or stops\n" +
-        "- R resets the script position without changing your current speed\n\n" +
-        "If you upload a new script, speed and position reset.",
+        "- R resets position\n\n" +
+        "Uploading a new script resets speed and position.",
       fileName: "teleprompter-script.txt",
-      flipH: false,
-      flipV: false,
-      textSize: 48,
-      indent: 15,
-      textColor: "#ffffff",
-      bgColor: "#000000",
-      bgOpacity: 100,
-      focusEnabled: true,
-      focusHeight: 90,
-      focusOffset: 35,
-      voiceMode: false,
-      startSpeed: 2,
+      flipH: false, flipV: false,
+      textSize: 48, indent: 15,
+      textColor: "#ffffff", bgColor: "#000000", bgOpacity: 100,
+      focusEnabled: true, focusHeight: 90, focusOffset: 35,
+      voiceMode: false, startSpeed: 2,
       bindings: {
-        speedUp: { code: "PageDown", key: "PageDown" },
-        speedDown: { code: "PageUp", key: "PageUp" },
-        toggle: { code: "Space", key: " " },
-        reset: { code: "KeyR", key: "r" },
-        exit: { code: "Escape", key: "Escape" }
+        speedUp:   { code: "PageDown", key: "PageDown" },
+        speedDown: { code: "PageUp",   key: "PageUp"   },
+        toggle:    { code: "Space",    key: " "         },
+        reset:     { code: "KeyR",     key: "r"         },
+        exit:      { code: "Escape",   key: "Escape"    }
       }
     };
 
     let state = deepClone(defaultState);
 
-    let canvas;
-    let ctx;
-    let dpr = 1;
-    let canvasW = 0;
-    let canvasH = 0;
+    // ─── Canvas / layout globals ────────────────────────────────────────────────
+    let canvas, ctx;
+    let dpr = 1, canvasW = 0, canvasH = 0;
+    let lines = [], lineWords = [], lineCharStarts = [];
+    let lineHeight = 0, startY = 0, focusY = 0, maxScroll = 0;
 
-    let lines = [];
-    let lineWords = [];
-    let lineCharStarts = [];
-    let lineHeight = 0;
-    let startY = 0;
-    let focusY = 0;
-    let maxScroll = 0;
+    // ─── Scroll / playback globals ───────────────────────────────────────────────
+    let scrollPos = 0, currentSpeed = 0, isScrolling = false;
+    let rafId = null, lastTime = 0;
 
-    let scrollPos = 0;
-    let currentSpeed = 0;
-    let isScrolling = false;
-    let rafId = null;
-    let lastTime = 0;
+    // ─── Speech recognition ──────────────────────────────────────────────────────
+    let recognition = null, isListening = false;
 
-    let recognition = null;
-    let isListening = false;
+    // ─── Voice engine state ──────────────────────────────────────────────────────
+    let voiceCurrentLine    = 0;    // Last confirmed line (yellow highlight + HUD)
+    let voicePhantomScroll  = 0;    // Phantom cursor (px) — always moves forward
+    let voiceSpeedPxPerSec  = 30;   // Phantom speed — recalculated from WPM
+    let voiceCurrentWPM     = 150;  // Adaptive WPM estimate (rolling 5-second window)
+    let voiceRecentMatches  = [];   // [{ time, words }] for WPM rolling window
+    let voiceLastMatchTime  = 0;    // Timestamp of last recognition match (HUD display)
+    let voiceSessionStartTime = 0;  // When the current voice session began
+    let voiceLastValidScroll  = 0;  // Floor: scroll can never go below this
+    let captureAction       = null; // Handled early, avoiding Temporal Dead Zone crash
 
-    // --- REENGINEERED VOICE PROPULSION ENGINE ---
-    let voiceCurrentLine = 0;         // The line currently high-lighted yellow
-    let voiceLineProgress = 0.0;      // Approximate percent through current line (0-1)
-    let voiceWordsSpokenTotal = 0;    // Absolute global recognized words
-    let voiceSessionStartTime = 0;    // Time session first started
-    let voiceLastMatchTime = 0;       // Timestamp of the last successful recognition match
-    let voiceSpokenBuffer = [];       // Rolling array of late word tokens parsed
-    let voiceRecentWords = [];        // Rolling sliding window for WPM calculations [{time, count}]
-    let voiceCurrentWPM = 140;        // Start with healthy default speaking rate
-    let voiceLastValidScroll = 0;     // Safe baseline tracker
+    // ─── Tuning constants ────────────────────────────────────────────────────────
+    const voiceMinWPM              = 60;   // Lower bound on adaptive WPM
+    const voiceMaxWPM              = 280;  // Upper bound on adaptive WPM
+    const voiceMaxSpeedPxPerSec    = 900;  // Hard speed cap for scroll
+    const voiceCorrectionGain      = 4.0;  // P-gain: how aggressively the scroll chases the phantom.
+    const voiceSearchWindow        = 7;    // How many lines ahead to search for a match
+    const voiceMinMatchScore       = 0.25; // Minimum subsequence-match score
+    const voiceMatchWordWindow     = 10;   // Words window to compare
+    const voicePlausibilityBurst   = 1.8;  // Max deviation allowed over human base velocity
 
-    let captureAction = null;
-
-    const remoteSpeedStep = 0.25;
+    const voiceLineSpacingMultiplier  = 1.8;
+    const manualLineSpacingMultiplier = 1.45;
+    const remoteSpeedStep             = 0.25;
     const pixelsPerSecondPerSpeedUnit = 18;
 
-    // Voice spacing structures
-    const voiceLineSpacingMultiplier = 1.8;
-    const manualLineSpacingMultiplier = 1.45;
-    
-    // Safety thresholds
-    const voiceMaxSpeedPxPerSec = 750; 
-    const voiceMinWPM = 50;
-
+    // ─── Element cache ───────────────────────────────────────────────────────────
     const els = {};
 
-    function deepClone(value) {
-      return JSON.parse(JSON.stringify(value));
-    }
+    // ════════════════════════════════════════════════════════════════════════════
+    //  UTILITIES
+    // ════════════════════════════════════════════════════════════════════════════
 
-    function $(id) {
-      return document.getElementById(id);
-    }
+    function deepClone(v) { return JSON.parse(JSON.stringify(v)); }
+    function $(id) { return document.getElementById(id); }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  INIT
+    // ════════════════════════════════════════════════════════════════════════════
 
     function init() {
       cacheElements();
@@ -429,148 +372,108 @@
       renderSetup();
       renderKeyBindings();
       updateFlipButtons();
-
       canvas = els.prompterCanvas;
       ctx = canvas.getContext("2d", { alpha: false });
-
       setupSpeechRecognition();
       wireUI();
     }
 
     function cacheElements() {
       [
-        "setupPage",
-        "prompterPage",
-        "prompterCanvas",
-        "startPromptBtn",
-        "clearSettingsBtn",
-        "flipHBtn",
-        "flipVBtn",
-        "textSizeInput",
-        "textSizeLabel",
-        "indentInput",
-        "indentLabel",
-        "textColorInput",
-        "bgColorInput",
-        "focusEnabledInput",
-        "focusHeightInput",
-        "focusHeightLabel",
-        "focusOffsetInput",
-        "focusOffsetLabel",
-        "voiceModeInput",
-        "startSpeedInput",
-        "startSpeedLabel",
-        "presenterPresetBtn",
-        "resetBindingsBtn",
-        "scriptInput",
-        "fileNameInput",
-        "importBtn",
-        "fileInput",
-        "exportTxtBtn",
-        "mobileExitBtn",
-        "resetScriptBtn",
-        "voiceToggleBtn",
-        "voiceStatusText",
-        "speedHud",
-        "wpmHud",
-        "modeHud"
-      ].forEach(id => {
-        els[id] = $(id);
-      });
+        "setupPage","prompterPage","prompterCanvas",
+        "startPromptBtn","clearSettingsBtn","flipHBtn","flipVBtn",
+        "textSizeInput","textSizeLabel","indentInput","indentLabel",
+        "textColorInput","bgColorInput",
+        "focusEnabledInput","focusHeightInput","focusHeightLabel",
+        "focusOffsetInput","focusOffsetLabel",
+        "voiceModeInput","startSpeedInput","startSpeedLabel",
+        "presenterPresetBtn","resetBindingsBtn",
+        "scriptInput","fileNameInput","importBtn","fileInput","exportTxtBtn",
+        "mobileExitBtn","resetScriptBtn","voiceToggleBtn","voiceStatusText",
+        "speedHud","wpmHud","modeHud"
+      ].forEach(id => { els[id] = $(id); });
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  STATE PERSISTENCE
+    // ════════════════════════════════════════════════════════════════════════════
 
     function loadState() {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-
       try {
         const saved = JSON.parse(raw);
-        state = {
-          ...deepClone(defaultState),
-          ...saved,
-          bindings: {
-            ...deepClone(defaultState.bindings),
-            ...(saved.bindings || {})
-          }
-        };
-      } catch {
-        state = deepClone(defaultState);
-      }
+        state = { ...deepClone(defaultState), ...saved,
+          bindings: { ...deepClone(defaultState.bindings), ...(saved.bindings || {}) } };
+      } catch { state = deepClone(defaultState); }
     }
 
-    function saveState() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }
+    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
 
-    function renderSetup() {
-      els.scriptInput.value = state.text;
-      els.fileNameInput.value = state.fileName;
-
-      els.textSizeInput.value = state.textSize;
-      els.textSizeLabel.textContent = `${state.textSize}px`;
-
-      els.indentInput.value = state.indent;
-      els.indentLabel.textContent = `${state.indent}%`;
-
-      els.textColorInput.value = state.textColor;
-      els.bgColorInput.value = state.bgColor;
-
+    // ════════════════════════════════════════════════════════════════════════════
+    //  SETUP PAGE RENDERING
+    // ════════════════════════════════════════════════════.indentInput.value      = state.indent;
+      els.indentLabel.textContent   = `${state.indent}%`;
+      els.textColorInput.value   = state.textColor;
+      els.bgColorInput.value     = state.bgColor;
       els.focusEnabledInput.checked = !!state.focusEnabled;
       els.focusHeightInput.value = state.focusHeight;
       els.focusHeightLabel.textContent = `${state.focusHeight}px`;
-
       els.focusOffsetInput.value = state.focusOffset;
       els.focusOffsetLabel.textContent = `${state.focusOffset}%`;
-
       els.voiceModeInput.checked = !!state.voiceMode;
-
-      els.startSpeedInput.value = state.startSpeed;
+      els.startSpeedInput.value  = state.startSpeed;
       els.startSpeedLabel.textContent = String(state.startSpeed);
     }
 
     function updateFlipButtons() {
       els.flipHBtn.classList.toggle("btn-active", !!state.flipH);
-      els.flipVBtn.btn-bind-reset",
-        exit: "btn-bind-exit"
-      };
+      els.flipVBtn.classList.toggle("btn-active", !!state.flipV);
+    }
 
-      for (const [action, id] of Object.entries(buttonMap)) {
+    function renderKeyBindings() {
+      const map = {
+        speedUp:"btn-bind-speedUp", speedDown:"btn-bind-speedDown",
+        toggle:"btn-bind-toggle",   reset:"btn-bind-reset", exit:"btn-bind-exit"
+      };
+      for (const [action, id] of Object.entries(map)) {
         const btn = $(id);
         if (!btn) continue;
-
-        const binding = state.bindings[action];
-        btn.textContent = binding.key === " " ? "Space" : (binding.key || binding.code || "Unset");
+        const b = state.bindings[action];
+        btn.textContent = b.key === " " ? "Space" : (b.key || b.code || "Unset");
         btn.classList.toggle("capturing", captureAction === action);
       }
     }
 
+    // ════════════════════════════════════════════════════════════════════════════
+    //  SPEECH RECOGNITION SETUP
+    // ════════════════════════════════════════════════════════════════════════════
+
     function setupSpeechRecognition() {
       if (!SpeechRecognition) {
         els.voiceModeInput.disabled = true;
-        els.voiceModeInput.checked = false;
+        els.voiceModeInput.checked  = false;
         state.voiceMode = false;
         return;
       }
-
       recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
+      recognition.continuous      = true;
+      recognition.interimResults  = true;
       recognition.onresult = handleSpeechResult;
-      recognition.onerror = event => {
-        console.warn("Speech recognition error:", event.error);
-      };
-      recognition.onend = () => {
+      recognition.onerror  = e => console.warn("SR error:", e.error);
+      recognition.onend    = () => {
         if (state.voiceMode && isListening) {
-          try {
-            recognition.start();
-          } catch {}
+          try { recognition.start(); } catch {}
         } else {
           isListening = false;
           updateVoiceUI();
         }
       };
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  UI EVENTS AND BINDINGS
+    // ════════════════════════════════════════════════════════════════════════════
 
     function wireUI() {
       els.startPromptBtn.addEventListener("click", startPrompter);
@@ -583,97 +486,50 @@
         location.reload();
       });
 
-      els.flipHBtn.addEventListener("click", () => {
-        state.flipH = !state.flipH;
-        saveState();
-        updateFlipButtons();
-      });
+      els.flipHBtn.addEventListener("click", () => { state.flipH = !state.flipH; saveState(); updateFlipButtons(); });
+      els.flipVBtn.addEventListener("click", () => { state.flipV = !state.flipV; saveState(); updateFlipButtons(); });
 
-      els.flipVBtn.addEventListener("click", () => {
-        state.flipV = !state.flipV;
-        saveState();
-        updateFlipButtons();
-      });
+      bindRange(els.textSizeInput,   "textSize",    els.textSizeLabel,    "px");
+      bindRange(els.indentInput,     "indent",      els.indentLabel,      "%");
+      bindRange(els.focusHeightInput,"focusHeight", els.focusHeightLabel, "px");
+      bindRange(els.focusOffsetInput,"focusOffset", els.focusOffsetLabel, "%");
+      bindRange(els.startSpeedInput, "startSpeed",  els.startSpeedLabel,  "");
 
-      bindRange(els.textSizeInput, "textSize", els.textSizeLabel, "px");
-      bindRange(els.indentInput, "indent", els.indentLabel, "%");
-      bindRange(els.focusHeightInput, "focusHeight", els.focusHeightLabel, "px");
-      bindRange(els.focusOffsetInput, "focusOffset", els.focusOffsetLabel, "%");
-      bindRange(els.startSpeedInput, "startSpeed", els.startSpeedLabel, "");
+      els.textColorInput.addEventListener("input", () => { state.textColor = els.textColorInput.value; saveState(); });
+      els.bgColorInput.addEventListener("input",   () => { state.bgColor   = els.bgColorInput.value;   saveState(); });
+      els.focusEnabledInput.addEventListener("change", () => { state.focusEnabled = els.focusEnabledInput.checked; saveState(); });
 
-      els.textColorInput.addEventListener("input", () => {
-        state.textColor = els.textColorInput.value;
-        saveState();
-      });
-
-      els.bgColorInput.addEventListener("input", () => {
-        state.bgColor = els.bgColorInput.value;
-        saveState();
-      });
-
-      els.focusEnabledInput.addEventListener("change", () => {
-        state.focusEnabled = els.focusEnabledInput.checked;
-        saveState();
-      });
-
-      els.voiceModeInput.addEventListener("change", () => {
-        state.voiceMode = els.voiceModeInput.checked;
-        saveState();
-
-        if (!els.prompterPage.classList.contains("hidden")) {
-          prepareCanvasAndText();
-          resetVoiceController();
-          scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
-        }
-
-        syncVoiceListening();
-      });
-
-      els.voiceToggleBtn.addEventListener("click", () => {
+      const toggleVoice = () => {
         state.voiceMode = !state.voiceMode;
         els.voiceModeInput.checked = state.voiceMode;
         saveState();
-
         if (!els.prompterPage.classList.contains("hidden")) {
           prepareCanvasAndText();
           resetVoiceController();
           scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
         }
-
         syncVoiceListening();
-      });
+      };
+      els.voiceModeInput.addEventListener("change", toggleVoice);
+      els.voiceToggleBtn.addEventListener("click",  toggleVoice);
 
       els.presenterPresetBtn.addEventListener("click", () => {
-        state.bindings = deepClone(defaultState.bindings);
-        saveState();
-        renderKeyBindings();
+        state.bindings = deepClone(defaultState.bindings); saveState(); renderKeyBindings();
         alert("Remote preset applied: PageDown speeds up, PageUp slows down.");
       });
-
       els.resetBindingsBtn.addEventListener("click", () => {
-        state.bindings = deepClone(defaultState.bindings);
-        saveState();
-        renderKeyBindings();
+        state.bindings = deepClone(defaultState.bindings); saveState(); renderKeyBindings();
       });
 
-      document.querySelectorAll(".key-btn").forEach(button => {
-        button.addEventListener("click", () => startCapture(button.dataset.bind));
-      });
+      document.querySelectorAll(".key-btn").forEach(btn =>
+        btn.addEventListener("click", () => startCapture(btn.dataset.bind)));
 
-      els.importBtn.addEventListener("click", () => els.fileInput.click());
+      els.importBtn.addEventListener("click",  () => els.fileInput.click());
       els.fileInput.addEventListener("change", importScriptFile);
-
       els.exportTxtBtn.addEventListener("click", exportTxtFile);
 
-      els.scriptInput.addEventListener("input", () => {
-        state.text = els.scriptInput.value;
-        saveState();
-      });
-
-      els.fileNameInput.addEventListener("input", () => {
-        state.fileName = els.fileNameInput.value || "teleprompter-script.txt";
-        saveState();
-      });
+      els.scriptInput.addEventListener("input",   () => { state.text     = els.scriptInput.value;              saveState(); });
+      els.fileNameInput.addEventListener("input", () => { state.fileName = els.fileNameInput.value || "teleprompter-script.txt"; saveState(); });
 
       window.addEventListener("keydown", handleKeyDown, { passive: false });
       window.addEventListener("resize", () => {
@@ -689,7 +545,6 @@
         state[key] = value;
         label.textContent = `${value}${suffix}`;
         saveState();
-
         if (!els.prompterPage.classList.contains("hidden")) {
           prepareCanvasAndText();
           drawCanvasFrame();
@@ -700,164 +555,100 @@
     function startCapture(action) {
       captureAction = action;
       renderKeyBindings();
-
-      const handler = event => {
-        event.preventDefault();
-        event.stopPropagation();
-
-        state.bindings[action] = {
-          code: event.code,
-          key: event.key
-        };
-
-        captureAction = null;
-        saveState();
-        renderKeyBindings();
+      const handler = e => {
+        e.preventDefault(); e.stopPropagation();
+        state.bindings[action] = { code: e.code, key: e.key };
+        captureAction = null; saveState(); renderKeyBindings();
         window.removeEventListener("keydown", handler, true);
       };
-
       window.addEventListener("keydown", handler, true);
     }
 
     function importScriptFile(event) {
       const file = event.target.files && event.target.files[0];
       if (!file) return;
-
       const reader = new FileReader();
-
       reader.onload = () => {
         let text = String(reader.result || "");
-
         if (file.name.toLowerCase().endsWith(".rtf")) {
-          text = text
-            .replace(/\\par[d]?/g, "\n")
-            .replace(/\\[a-zA-Z]+-?\d* ?/g, "")
-            .replace(/[{}]/g, "")
-            .trim();
+          text = text.replace(/\\par[d]?/g,"\n").replace(/\\[a-zA-Z]+-?\d* ?/g,"").replace(/[{}]/g,"").trim();
         }
-
-        state.text = text;
-        state.fileName = file.name;
-        els.scriptInput.value = text;
-        els.fileNameInput.value = file.name;
-
-        // New uploaded script resets both speed and position.
-        scrollPos = 0;
-        currentSpeed = 0;
-        isScrolling = false;
-        resetVoiceController();
-
-        saveState();
+        state.text = text; state.fileName = file.name;
+        els.scriptInput.value = text; els.fileNameInput.value = file.name;
+        scrollPos = 0; currentSpeed = 0; isScrolling = false;
+        resetVoiceController(); saveState();
       };
-
       reader.readAsText(file);
     }
 
     function exportTxtFile() {
       const blob = new Blob([state.text || ""], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = state.fileName || "teleprompter-script.txt";
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = state.fileName || "teleprompter-script.txt";
+      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  KEYBOARD CONTROL LOGIC
+    // ════════════════════════════════════════════════════════════════════════════
 
     function handleKeyDown(event) {
       if (captureAction) return;
       if (els.prompterPage.classList.contains("hidden")) return;
-
       event.preventDefault();
+      const { code, key } = event;
 
-      const code = event.code;
-      const key = event.key;
-
-      if (matchesBinding("exit", code, key)) {
-        stopPrompter();
-        return;
-      }
-
-      if (matchesBinding("reset", code, key)) {
-        resetScriptPositionKeepSpeed();
-        return;
-      }
+      if (matchesBinding("exit", code, key))  { stopPrompter(); return; }
+      if (matchesBinding("reset", code, key)) { resetScriptPositionKeepSpeed(); return; }
 
       if (matchesBinding("toggle", code, key)) {
         if (state.voiceMode) {
-          state.voiceMode = false;
-          els.voiceModeInput.checked = false;
-          saveState();
-          syncVoiceListening();
-          return;
+          state.voiceMode = false; els.voiceModeInput.checked = false;
+          saveState(); syncVoiceListening(); return;
         }
-
-        if (!isScrolling) {
-          isScrolling = true;
-          if (currentSpeed === 0) {
-            currentSpeed = Number(state.startSpeed) || 2;
-          }
-        } else {
-          isScrolling = false;
-        }
+        if (!isScrolling) { isScrolling = true; if (currentSpeed === 0) currentSpeed = Number(state.startSpeed) || 2; }
+        else               { isScrolling = false; }
         return;
       }
 
       if (!state.voiceMode) {
         if (matchesBinding("speedUp", code, key) || isCommonNextKey(code, key)) {
           isScrolling = true;
-          currentSpeed = Math.round((currentSpeed + remoteSpeedStep) * 100) / 100;
-          return;
+          currentSpeed = Math.round((currentSpeed + remoteSpeedStep) * 100) / 100; return;
         }
-
         if (matchesBinding("speedDown", code, key) || isCommonPreviousKey(code, key)) {
           isScrolling = true;
-          currentSpeed = Math.round((currentSpeed - remoteSpeedStep) * 100) / 100;
-          return;
+          currentSpeed = Math.round((currentSpeed - remoteSpeedStep) * 100) / 100; return;
         }
       }
     }
 
     function matchesBinding(action, code, key) {
-      const binding = state.bindings[action];
-      if (!binding) return false;
-
-      if (binding.code === "Space" || binding.key === " ") {
-        return code === "Space" || key === " ";
-      }
-
-      return binding.code === code || binding.key === key;
+      const b = state.bindings[action]; if (!b) return false;
+      if (b.code === "Space" || b.key === " ") return code === "Space" || key === " ";
+      return b.code === code || b.key === key;
     }
+    function isCommonNextKey(code, key)     { return code==="PageDown"||key==="PageDown"||code==="ArrowRight"||key==="ArrowRight"; }
+    function isCommonPreviousKey(code, key) { return code==="PageUp"  ||key==="PageUp"  ||code==="ArrowLeft" ||key==="ArrowLeft";  }
 
-    function isCommonNextKey(code, key) {
-      return code === "PageDown" || key === "PageDown" || code === "ArrowRight" || key === "ArrowRight";
-    }
-
-    function isCommonPreviousKey(code, key) {
-      return code === "PageUp" || key === "PageUp" || code === "ArrowLeft" || key === "ArrowLeft";
-    }
+    // ════════════════════════════════════════════════════════════════════════════
+    //  PROMPTER LIFECYCLE
+    // ════════════════════════════════════════════════════════════════════════════
 
     function startPrompter() {
-      if (!state.text || !state.text.trim()) {
-        alert("Please enter or import a script first.");
-        return;
-      }
-
+      if (!state.text || !state.text.trim()) { alert("Please enter or import a script first."); return; }
       els.setupPage.classList.add("hidden");
       els.prompterPage.classList.remove("hidden");
       document.body.classList.add("prompt-lock");
 
       prepareCanvasAndText();
-
-      scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
-      isScrolling = false;
+      scrollPos    = state.voiceMode ? getVoiceStartScroll() : 0;
+      isScrolling  = false;
       currentSpeed = 0;
       resetVoiceController();
-
       syncVoiceListening();
       updateVoiceUI();
-
       drawCanvasFrame();
 
       if (rafId) cancelAnimationFrame(rafId);
@@ -866,13 +657,10 @@
     }
 
     function stopPrompter() {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = null;
-
+      if (rafId) cancelAnimationFrame(rafId); rafId = null;
       els.prompterPage.classList.add("hidden");
       els.setupPage.classList.remove("hidden");
       document.body.classList.remove("prompt-lock");
-
       stopVoiceListening();
     }
 
@@ -880,87 +668,69 @@
       scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
       resetVoiceController();
       drawCanvasFrame();
-
-      if (state.voiceMode && recognition) {
-        stopVoiceListening();
-        setTimeout(syncVoiceListening, 120);
-      }
+      if (state.voiceMode && recognition) { stopVoiceListening(); setTimeout(syncVoiceListening, 120); }
     }
 
+    // ════════════════════════════════════════════════════════════════════════════
+    //  CANVAS & TEXT PREPARATION
+    // ════════════════════════════════════════════════════════════════════════════
+
     function prepareCanvasAndText() {
-      dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+      dpr     = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
       canvasW = window.innerWidth;
       canvasH = window.innerHeight;
-
-      canvas.width = Math.round(canvasW * dpr);
+      canvas.width  = Math.round(canvasW * dpr);
       canvas.height = Math.round(canvasH * dpr);
-      canvas.style.width = `${canvasW}px`;
+      canvas.style.width  = `${canvasW}px`;
       canvas.style.height = `${canvasH}px`;
-
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const spacingMultiplier = state.voiceMode ? voiceLineSpacingMultiplier : manualLineSpacingMultiplier;
-      lineHeight = Math.round(state.textSize * spacingMultiplier);
-      focusY = canvasH * (state.focusOffset / 100);
+      lineHeight = Math.round(state.textSize * (state.voiceMode ? voiceLineSpacingMultiplier : manualLineSpacingMultiplier));
+      focusY     = canvasH * (state.focusOffset / 100);
+      startY     = canvasH - lineHeight * 3;
 
-      startY = canvasH - (lineHeight * 3);
-
-      const left = canvasW * (state.indent / 100);
+      const left      = canvasW * (state.indent / 100);
       const textWidth = Math.max(100, canvasW - left * 2);
-
       ctx.font = `${state.textSize}px Arial, Helvetica, sans-serif`;
-      lines = wrapText(state.text || "", textWidth);
 
-      lineWords = lines.map(line => splitWords(line));
+      lines     = wrapText(state.text || "", textWidth);
+      lineWords = lines.map(l => splitWords(l));
       calculateLineCharStarts();
 
-      const lastLineIndex = Math.max(0, lines.length - 1);
-      const lastLineCenterScriptY = lastLineIndex * lineHeight + lineHeight / 2;
+      const lastIdx = Math.max(0, lines.length - 1);
+      maxScroll = Math.max(0, startY + lastIdx * lineHeight + state.textSize / 2 - focusY);
 
-      maxScroll = Math.max(0, startY + lastLineCenterScriptY - focusY);
+      if (state.voiceMode && isListening) {
+        voiceSpeedPxPerSec = calcSpeedFromWPM(voiceCurrentWPM);
+      }
     }
 
     function wrapText(text, maxWidth) {
       const result = [];
-      const paragraphs = String(text)
-        .replace(/\r\n/g, "\n")
-        .replace(/\r/g, "\n")
-        .split("\n");
-
-      for (const paragraph of paragraphs) {
-        if (!paragraph.trim()) {
-          result.push("");
-          continue;
-        }
-
-        const words = paragraph.split(/\s+/);
+      const paras  = String(text).replace(/\r\n/g,"\n").replace(/\r/g,"\n").split("\n");
+      for (const para of paras) {
+        if (!para.trim()) { result.push(""); continue; }
+        const words = para.split(/\s+/);
         let line = "";
-
         for (const word of words) {
           const test = line ? `${line} ${word}` : word;
-          if (ctx.measureText(test).width <= maxWidth || !line) {
-            line = test;
-          } else {
-            result.push(line);
-            line = word;
-          }
+          if (ctx.measureText(test).width <= maxWidth || !line) { line = test; }
+          else { result.push(line); line = word; }
         }
-
         if (line) result.push(line);
       }
-
       return result;
     }
 
     function calculateLineCharStarts() {
       lineCharStarts = [];
       let total = 0;
-
-      for (const line of lines) {
-        lineCharStarts.push(total);
-        total += line.length + 1;
-      }
+      for (const line of lines) { lineCharStarts.push(total); total += line.length + 1; }
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  ANIMATION LOOP
+    // ════════════════════════════════════════════════════════════════════════════
 
     function animationLoop(now) {
       const dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -972,27 +742,23 @@
         scrollPos += currentSpeed * pixelsPerSecondPerSpeedUnit * dt;
       }
 
-      if (scrollPos < 0) {
-        scrollPos = 0;
-      }
-
-      if (scrollPos >= maxScroll) {
-        scrollPos = maxScroll;
-        isScrolling = false;
-      }
+      scrollPos = Math.max(0, scrollPos);
+      if (scrollPos >= maxScroll) { scrollPos = maxScroll; isScrolling = false; }
 
       drawCanvasFrame();
       updateHud();
-
       rafId = requestAnimationFrame(animationLoop);
     }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    //  CANVAS DRAWING
+    // ════════════════════════════════════════════════════════════════════════════
 
     function drawCanvasFrame() {
       ctx.save();
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
       const bg = hexToRgb(state.bgColor);
-      ctx.fillStyle = `rgba(${bg.r}, ${bg.g}, ${bg.b}, ${state.bgOpacity / 100})`;
+      ctx.fillStyle = `rgba(${bg.r},${bg.g},${bg.b},${state.bgOpacity / 100})`;
       ctx.fillRect(0, 0, canvasW, canvasH);
 
       ctx.translate(canvasW / 2, canvasH / 2);
@@ -1001,90 +767,61 @@
 
       ctx.font = `${state.textSize}px Arial, Helvetica, sans-serif`;
       ctx.textBaseline = "top";
-
-      const left = canvasW * (state.indent / 100);
+      const left  = canvasW * (state.indent / 100);
       const first = Math.max(0, Math.floor((scrollPos - startY) / lineHeight) - 3);
-      const last = Math.min(lines.length - 1, Math.ceil((scrollPos + canvasH - startY) / lineHeight) + 3);
+      const last  = Math.min(lines.length - 1, Math.ceil((scrollPos + canvasH - startY) / lineHeight) + 3);
 
       for (let i = first; i <= last; i++) {
         const y = startY + i * lineHeight - scrollPos;
-
-        if (state.voiceMode && i === voiceCurrentLine) {
-          ctx.fillStyle = "#facc15"; // Highlight matching spoken line yellow
-        } else {
-          ctx.fillStyle = state.textColor;
-        }
-
+        ctx.fillStyle = (state.voiceMode && i === voiceCurrentLine) ? "#facc15" : state.textColor;
         ctx.fillText(lines[i], left, y);
       }
 
       if (state.focusEnabled) {
         const barTop = focusY - state.focusHeight / 2;
-        ctx.fillStyle = "rgba(16, 185, 129, 0.16)";
+        ctx.fillStyle   = "rgba(16,185,129,0.16)";
         ctx.fillRect(0, barTop, canvasW, state.focusHeight);
-
-        ctx.strokeStyle = "rgba(16, 185, 129, 0.45)";
-        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(16,185,129,0.45)";
+        ctx.lineWidth   = 2;
         ctx.beginPath();
-        ctx.moveTo(0, barTop);
-        ctx.lineTo(canvasW, barTop);
-        ctx.moveTo(0, barTop + state.focusHeight);
-        ctx.lineTo(canvasW, barTop + state.focusHeight);
+        ctx.moveTo(0, barTop);              ctx.lineTo(canvasW, barTop);
+        ctx.moveTo(0, barTop + state.focusHeight); ctx.lineTo(canvasW, barTop + state.focusHeight);
         ctx.stroke();
       }
-
       ctx.restore();
     }
 
     function hexToRgb(hex) {
-      const safe = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
-      return {
-        r: parseInt(safe.slice(1, 3), 16),
-        g: parseInt(safe.slice(3, 5), 16),
-        b: parseInt(safe.slice(5, 7), 16)
-      };
+      const s = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : "#000000";
+      return { r: parseInt(s.slice(1,3),16), g: parseInt(s.slice(3,5),16), b: parseInt(s.slice(5,7),16) };
     }
 
     function updateHud() {
-      els.speedHud.textContent = currentSpeed.toFixed(0);
-      els.wpmHud.textContent = Math.round(voiceCurrentWPM);
-      els.modeHud.textContent = state.voiceMode && isListening
-        ? `Voice (Line ${Math.min(lines.length, voiceCurrentLine + 1)})`
+      els.speedHud.textContent = Math.round(currentSpeed);
+      els.wpmHud.textContent   = Math.round(voiceCurrentWPM);
+      els.modeHud.textContent  = state.voiceMode && isListening
+        ? `Voice · Line ${Math.min(lines.length, voiceCurrentLine + 1)}`
         : (isScrolling ? "Manual scrolling" : "Paused");
       els.voiceStatusText.textContent = state.voiceMode && isListening ? "Voice On" : "Voice Off";
       els.voiceToggleBtn.classList.toggle("voice-on", state.voiceMode && isListening);
     }
 
-    function syncVoiceListening() {
-      if (!recognition) {
-        updateVoiceUI();
-        return;
-      }
+    // ════════════════════════════════════════════════════════════════════════════
+    //  VOICE MANAGEMENT
+    // ════════════════════════════════════════════════════════════════════════════
 
+    function syncVoiceListening() {
+      if (!recognition) { updateVoiceUI(); return; }
       if (state.voiceMode) {
-        try {
-          recognition.start();
-          isListening = true;
-          if (voiceSessionStartTime === 0) {
-            voiceSessionStartTime = performance.now();
-            voiceLastMatchTime = voiceSessionStartTime;
-          }
-        } catch {
-          isListening = true;
-        }
+        try { recognition.start(); isListening = true; } catch { isListening = true; }
       } else {
         stopVoiceListening();
       }
-
       updateVoiceUI();
     }
 
     function stopVoiceListening() {
-      if (recognition) {
-        try {
-          recognition.stop();
-        } catch {}
-      }
+      if (recognition) { try { recognition.stop(); } catch {} }
       isListening = false;
       updateVoiceUI();
     }
@@ -1094,261 +831,204 @@
       els.voiceToggleBtn.classList.toggle("voice-on", state.voiceMode && isListening);
     }
 
+    function getIdealScrollForLine(lineIndex) {
+      const i  = Math.max(0, Math.min(lines.length - 1, lineIndex));
+      const cy = i * lineHeight + state.textSize / 2;
+      return Math.max(0, Math.min(maxScroll, startY + cy - focusY));
+    }
+
+    function getScrollForLineAndProgress(lineIndex, progress) {
+      const base = getIdealScrollForLine(lineIndex);
+      const next = getIdealScrollForLine(lineIndex + 1);
+      return base + Math.max(0, Math.min(1, progress)) * (next - base);
+    }
+
     function getVoiceStartScroll() {
-      const desiredFirstLineY = focusY - lineHeight / 2;
-      return Math.max(0, startY - desiredFirstLineY);
+      const barBottom = focusY + state.focusHeight / 2;
+      const line0TextCenter = state.textSize / 2;
+      return Math.max(0, startY + line0TextCenter - barBottom - lineHeight * 0.5);
+    }
+
+    function getTotalEffectiveWords() {
+      let totalWords = 0, textLines = 0;
+      for (const lw of lineWords) { if (lw.length > 0) { totalWords += lw.length; textLines++; } }
+      const avgWPL = totalWords / Math.max(1, textLines);
+      let effective = totalWords;
+      for (const lw of lineWords) { if (lw.length === 0) effective += avgWPL * 0.5; }
+      return Math.max(1, effective);
+    }
+
+    function calcSpeedFromWPM(wpm) {
+      if (maxScroll === 0 || lines.length === 0) return 20;
+      const travelPx       = Math.max(1, maxScroll - getVoiceStartScroll());
+      const effectiveWords = getTotalEffectiveWords();
+      const totalTimeSec   = effectiveWords / (wpm / 60);
+      return travelPx / totalTimeSec;
     }
 
     function resetVoiceController() {
-      voiceCurrentLine = 0;
-      voiceLineProgress = 0.0;
-      voiceLastMatchTime = performance.now();
-      voiceWordsSpokenTotal = 0;
+      const start         = getVoiceStartScroll();
+      voiceCurrentLine    = 0;
+      voicePhantomScroll  = start;
+      voiceLastValidScroll = start;
+      voiceCurrentWPM     = 150;
+      voiceSpeedPxPerSec  = calcSpeedFromWPM(150);
+      voiceRecentMatches  = [];
+      voiceLastMatchTime  = 0;
       voiceSessionStartTime = performance.now();
-      voiceRecentWords = [];
-      voiceSpokenBuffer = [];
-      voiceCurrentWPM = 140; 
-      voiceLastValidScroll = getVoiceStartScroll();
     }
 
-    // Calculate the ideal scroll position to align a line's exact center with the center of the highlight focus bar
-    function getIdealScrollForLine(lineIndex) {
-      const safeIndex = Math.max(0, Math.min(lines.length - 1, lineIndex));
-      const lineCenterScriptY = safeIndex * lineHeight + lineHeight / 2;
-      const target = startY + lineCenterScriptY - focusY;
-      return Math.max(0, Math.min(maxScroll, target));
-    }
-
-    // Calculate total layout words from line 0 representing speaking baseline
-    function getCumulativeWordsUpTo(lineIndex) {
-      let count = 0;
-      for (let i = 0; i <= lineIndex; i++) {
-        count += (lineWords[i] ? lineWords[i].length : 0);
-      }
-      return count;
-    }
-
-    // --- NEW PHYSICS SCROLL ENGINE ---
     function updateVoiceScroll(dt) {
-      if (lines.length === 0) return;
+      voicePhantomScroll = Math.min(maxScroll, voicePhantomScroll + voiceSpeedPxPerSec * dt);
 
-      const now = performance.now();
+      const error    = voicePhantomScroll - scrollPos;
+      const rawSpeed = voiceSpeedPxPerSec + error * voiceCorrectionGain;
+      currentSpeed   = Math.max(0, Math.min(rawSpeed, voiceMaxSpeedPxPerSec));
 
-      // If current line has no spoken content, bridge forward instantly to the next populated line
-      while (voiceCurrentLine < lines.length - 1 && lineWords[voiceCurrentLine].length === 0) {
-        voiceCurrentLine++;
-        voiceLineProgress = 0.0;
-      }
+      scrollPos += currentSpeed * dt;
 
-      // 1. Calculate Target Scroll position representing the exact vocal position
-      const currentLineBaseScroll = getIdealScrollForLine(voiceCurrentLine);
-      const nextLineBaseScroll = getIdealScrollForLine(voiceCurrentLine + 1);
-      const crossLineDistance = nextLineBaseScroll - currentLineBaseScroll;
-
-      // Map progress through the line directly to actual screen placement
-      const targetScroll = currentLineBaseScroll + (voiceLineProgress * crossLineDistance);
-
-      // 2. Adjust dynamic scrolling velocity based on distance error
-      const scrollGap = targetScroll - scrollPos;  // positive means user is reading ahead (prompter needs to catch up)
-
-      // Estimate WPM dynamic guidance velocity (words-per-second * lineHeight scaling per word)
-      const avgWordsPerLine = Math.max(1, lineWords[voiceCurrentLine]?.length || 6);
-      const baseWPS = voiceCurrentWPM / 60;
-      const estimatedLineDuration = avgWordsPerLine / baseWPS; 
-      const estimatedScrollingBaseSpeed = crossLineDistance / Math.max(0.2, estimatedLineDuration);
-
-      let wantedSpeed = estimatedScrollingBaseSpeed;
-
-      if (scrollGap > 10) {
-        // User is speaking ahead of current focus bar! Accelerate strongly to catch up.
-        const catchupForce = 3.5; 
-        wantedSpeed += (scrollGap * catchupForce);
-      } else if (scrollGap < -10) {
-        // Prompter has active line scrolled above the focus bar (Lag / Read offset error)!
-        // Slow speed drastically (or stop completely) so speech matches placement again.
-        wantedSpeed = Math.max(0, estimatedScrollingBaseSpeed + (scrollGap * 4.0));
-      } else {
-        // Very close alignment! Maintain smooth tracking guide speed.
-        wantedSpeed = estimatedScrollingBaseSpeed;
-      }
-
-      // Hard limits to prevent runaway loops
-      if (wantedSpeed > voiceMaxSpeedPxPerSec) {
-        wantedSpeed = voiceMaxSpeedPxPerSec;
-      }
-
-      // Update current speed smoothly utilizing standard dampening inertia
-      currentSpeed = currentSpeed * 0.82 + wantedSpeed * 0.18;
-
-      // Apply movement step
-      const step = currentSpeed * dt;
-      scrollPos += step;
-
-      // Never drift backward
       if (scrollPos < voiceLastValidScroll) {
-        scrollPos = voiceLastValidScroll;
+        scrollPos    = voiceLastValidScroll;
         currentSpeed = 0;
       }
       voiceLastValidScroll = scrollPos;
     }
 
-    function normaliseForSpeech(text) {
-      return String(text || "")
-        .toLowerCase()
-        .replace(/[^\w\s']/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-    }
-
-    function splitWords(text) {
-      const clean = normaliseForSpeech(text);
-      if (!clean) return [];
-      return clean.split(/\s+/);
-    }
-
-    // --- NEW ROBUST PARTIAL SPEECH PROCESSING & CORRECTION ---
     function handleSpeechResult(event) {
       if (!state.voiceMode || !lines.length) return;
 
       let transcript = "";
-      
-      // Pull and aggregate latest interim and final results
+      let hasFinal   = false;
+
       for (let i = event.resultIndex; i < event.results.length; i++) {
         transcript += event.results[i][0].transcript + " ";
+        if (event.results[i].isFinal) hasFinal = true;
       }
 
       const spokenWords = splitWords(transcript);
       if (!spokenWords.length) return;
 
-      // Update spoken circular buffer with last 35 tokens recognized (to ignore older speech filler anomalies)
-      voiceSpokenBuffer = spokenWords.slice(-35);
-
-      // Search local visibility bounds for the highest matching phrase structure
-      const match = findBestLineMatch(voiceSpokenBuffer);
+      const now   = performance.now();
+      const match = findBestLineMatch(spokenWords, now);
       if (!match) return;
 
       const { lineIndex, progress } = match;
+      const matchedScroll = getScrollForLineAndProgress(lineIndex, progress);
 
-      // SAFETY: Plausibility checks to prevent long loops or duplicate pattern anomalies
-      const maxPlausibleLine = getMaxPlausibleLine(performance.now());
-      if (lineIndex > maxPlausibleLine) {
-        return; // Reject jump: speaking rate physical limitation exceeded
+      if (matchedScroll > voicePhantomScroll) {
+        voicePhantomScroll = matchedScroll;
       }
 
-      const now = performance.now();
-      
       if (lineIndex >= voiceCurrentLine) {
         voiceCurrentLine = lineIndex;
-        voiceLineProgress = progress; // Directly sets the precise word progress in line
-        voiceLastMatchTime = now;
-        
-        // Calculate WPM Speaking Rate tracking
-        const wordsNow = getCumulativeWordsUpTo(lineIndex);
-        const deltaWords = wordsNow - voiceWordsSpokenTotal;
-        
-        if (deltaWords > 0) {
-          voiceWordsSpokenTotal = wordsNow;
-          voiceRecentWords.push({ time: now, count: wordsNow });
-          
-          // Clear items outside trailing 5-second window
-          const windowLimit = now - 5000;
-          voiceRecentWords = voiceRecentWords.filter(e => e.time >= windowLimit);
-          
-          if (voiceRecentWords.length >= 2) {
-            const durationSec = (voiceRecentWords[voiceRecentWords.length - 1].time - voiceRecentWords[0].time) / classList.toggle("btn-active", !!state.flipV);
+      }
+      voiceLastMatchTime = now;
+
+      if (hasFinal) {
+        updateWPMEstimate(lineIndex, now);
+      }
     }
 
-    function renderKeyBindings() {
-      const buttonMap = {
-        speedUp: "btn-bind-speedUp",
-        speedDown: "btn-bind-speedDown",
-        toggle: "btn-bind-toggle",
-        reset: "1000;
-            const wordsSpoken = voiceRecentWords[voiceRecentWords.length - 1].count - voiceRecentWords[0].count;
-            if (durationSec > 0.5) {
-              const sampledWPM = (wordsSpoken / durationSec) * 60;
-              // Dampened rolling weight
-              voiceCurrentWPM = (voiceCurrentWPM * 0.75) + (sampledWPM * 0.25);
-              if (voiceCurrentWPM < voiceMinWPM) voiceCurrentWPM = voiceMinWPM;
-              if (voiceCurrentWPM > 280) voiceCurrentWPM = 280; // Peak limits
-            }
-          }
+    function updateWPMEstimate(lineIndex, now) {
+      const wordsSoFar = getCumulativeWordsUpTo(lineIndex);
+      voiceRecentMatches.push({ time: now, words: wordsSoFar });
+
+      const cutoff = now - 5000;
+      voiceRecentMatches = voiceRecentMatches.filter(m => m.time >= cutoff);
+
+      if (voiceRecentMatches.length >= 2) {
+        const first    = voiceRecentMatches[0];
+        const last_    = voiceRecentMatches[voiceRecentMatches.length - 1];
+        const timeSec  = (last_.time  - first.time)  / 1000;
+        const wordSpan =  last_.words - first.words;
+
+        if (timeSec >= 0.5 && wordSpan > 0) {
+          const measured     = (wordSpan / timeSec) * 60;
+          voiceCurrentWPM    = voiceCurrentWPM * 0.7 + measured * 0.3;
+          voiceCurrentWPM    = Math.max(voiceMinWPM, Math.min(voiceMaxWPM, voiceCurrentWPM));
+          voiceSpeedPxPerSec = calcSpeedFromWPM════════════════════════
+
+    function renderSetup() {
+      els.scriptInput.value      = state.text;
+      els.fileNameInput.value    = state.fileName;
+      els.textSizeInput.value    = state.textSize;
+      els.textSizeLabel.textContent = `${state.textSize}px`;
+      els(voiceCurrentWPM);
         }
       }
     }
 
-    // Searches current window starting to find which script line has higher matching tokens
-    function findBestLineMatch(spokenHistory) {
-      const searchStart = Math.max(0, voiceCurrentLine - 1);
-      const searchEnd = Math.min(lines.length - 1, voiceCurrentLine + 5);
-      
-      let bestScore = -1;
-      let bestLine = -1;
-      let bestProgress = 0;
+    function findBestLineMatch(spokenWords, now) {
+      const recentWords = spokenWords.slice(-voiceMatchWordWindow);
+      const maxPlausible = getMaxPlausibleLine(now);
+      const searchEnd    = Math.min(
+        lines.length - 1,
+        Math.max(voiceCurrentLine + voiceSearchWindow, maxPlausible)
+      );
 
-      for (let i = searchStart; i <= searchEnd; i++) {
-        const result = calculatePhraseMatchScore(lineWords[i], spokenHistory);
+      let bestScore = -1, bestLine = -1, bestProgress = 0;
+
+      for (let i = voiceCurrentLine; i <= searchEnd; i++) {
+        const result = scoreLineMatch(lineWords[i], recentWords);
         if (result.score > bestScore) {
-          bestScore = result.score;
-          bestLine = i;
+          bestScore    = result.score;
+          bestLine     = i;
           bestProgress = result.progress;
         }
       }
 
-      // Quality evaluation target threshold
-      if (bestScore >= 0.25) { 
+      if (bestLine >= 0 && bestScore >= voiceMinMatchScore) {
         return { lineIndex: bestLine, progress: bestProgress };
       }
-      
       return null;
     }
 
-    // Scores token overlapping mapping index progress 0.0 -> 1.0 based on matches
-    function calculatePhraseMatchScore(lineWordsArr, spokenHistory) {
-      if (!lineWordsArr || lineWordsArr.length === 0) {
-        return { score: 0, progress: 0.0 };
-      }
-      
-      let matches = 0;
-      let matchedIndices = [];
+    function scoreLineMatch(lineWordsArr, spokenWords) {
+      if (!lineWordsArr || lineWordsArr.length === 0) return { score: 0, progress: 0 };
 
-      for (let i = 0; i < lineWordsArr.length; i++) {
-        const word = lineWordsArr[i];
-        
-        // Check if word occurs in the sliding spoken buffer
-        if (spokenHistory.includes(word)) {
-          matches++;
-          matchedIndices.push(i);
+      let matches = 0, lastMatchIdx = -1, lIdx = 0;
+
+      for (let sIdx = 0; sIdx < spokenWords.length; sIdx++) {
+        while (lIdx < lineWordsArr.length) {
+          if (spokenWords[sIdx] === lineWordsArr[lIdx]) {
+            matches++; lastMatchIdx = lIdx; lIdx++; break;
+          }
+          lIdx++;
         }
       }
 
-      if (matches === 0) {
-        return { score: 0, progress: 0.0 };
-      }
-
-      const score = matches / lineWordsArr.length;
-      
-      // Determine what matching index was identified absolute furthest along inside the script line
-      const furthestWordMatched = Math.max(...matchedIndices);
-      const progress = (furthestWordMatched + 1) / lineWordsArr.length;
-
+      const score    = matches / Math.max(1, spokenWords.length);
+      const progress = lastMatchIdx >= 0 ? (lastMatchIdx + 1) / lineWordsArr.length : 0;
       return { score, progress };
     }
 
     function getMaxPlausibleLine(now) {
-      const elapsedSec = Math.max(1, (now - voiceSessionStartTime) / 1000);
-      
-      // Allow speaking burst capability limit: 250 WPM default burst
-      const maxAllowedWords = elapsedSec * (Math.max(voiceCurrentWPM, 180) * 1.5 / 60);
-      
-      let runningCount = 0;
-      for (let i = 0; i < lines.length; i++) {
-        runningCount += (lineWords[i] ? lineWords[i].length : 0);
-        if (runningCount > maxAllowedWords) {
-          return i;
+      const elapsed      = Math.max(0, (now - voiceSessionStartTime) / 1000);
+      const maxWordsBurst = elapsed * (voiceCurrentWPM / 60) * voicePlausibilityBurst;
+
+      let accumulated = 0;
+      for (let i = 0; i < lineWords.length; i++) {
+        accumulated += Math.max(1, lineWords[i].length);
+        if (accumulated > maxWordsBurst) {
+          return Math.max(voiceCurrentLine + 1, i);
         }
       }
       return lines.length - 1;
+    }
+
+    function getCumulativeWordsUpTo(lineIndex) {
+      let count = 0;
+      for (let i = 0; i <= lineIndex && i < lineWords.length; i++) count += lineWords[i].length;
+      return count;
+    }
+
+    function normaliseForSpeech(text) {
+      return String(text || "").toLowerCase().replace(/[^\w\s']/g," ").replace(/\s+/g," ").trim();
+    }
+
+    function splitWords(text) {
+      const clean = normaliseForSpeech(text);
+      return clean ? clean.split(/\s+/) : [];
     }
 
     document.addEventListener("DOMContentLoaded", init);
