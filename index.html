@@ -6,6 +6,11 @@
  <title>Canvas Teleprompter</title>
  <script src="https://cdn.tailwindcss.com"></script>
  <style>
+   /*
+     CRITICAL: Declare .hidden ourselves so page-switching works even if
+     Tailwind JIT fails to boot (which it does on some systems due to missing
+     Node.js crypto/path built-ins in the browser environment).
+   */
    .hidden { display: none !important; }
 
    html, body {
@@ -88,6 +93,7 @@
 
 <body class="text-slate-100 font-sans">
 
+ <!-- ═══════════════════  SETUP PAGE  ═══════════════════ -->
  <main id="setupPage" class="max-w-7xl mx-auto p-4 md:p-8">
    <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b border-slate-700 pb-6 mb-8">
      <div>
@@ -107,7 +113,11 @@
    </header>
 
    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+     <!-- SETTINGS -->
      <section class="lg:col-span-5 space-y-6">
+
+       <!-- Display -->
        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
          <h2 class="text-xl font-bold mb-5">Display</h2>
          <div class="grid grid-cols-2 gap-4 mb-6">
@@ -144,6 +154,7 @@
          </div>
        </div>
 
+       <!-- Focus Bar -->
        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
          <div class="flex items-center justify-between mb-5">
            <h2 class="text-xl font-bold">Focus Bar</h2>
@@ -168,6 +179,7 @@
          </div>
        </div>
 
+       <!-- Voice & Remote -->
        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6">
          <h2 class="text-xl font-bold mb-5">Voice & Remote</h2>
 
@@ -229,6 +241,7 @@
        </div>
      </section>
 
+     <!-- SCRIPT EDITOR -->
      <section class="lg:col-span-7">
        <div class="bg-slate-900 border border-slate-700 rounded-2xl p-6 h-full flex flex-col">
          <div class="flex justify-between items-end mb-4 gap-3">
@@ -249,9 +262,11 @@
            class="flex-grow rounded-xl bg-slate-950 border border-slate-600 p-4 font-mono text-sm leading-relaxed focus:ring-2 focus:ring-blue-500 outline-none text-slate-200"></textarea>
        </div>
      </section>
+
    </div>
  </main>
 
+ <!-- ══════════════════  PROMPTER VIEW  ══════════════════ -->
  <section id="prompterPage" class="hidden fixed inset-0 z-50 overflow-hidden bg-black">
    <canvas id="prompterCanvas"></canvas>
 
@@ -272,7 +287,7 @@
 
    <div id="hud"
      class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-100 md:opacity-0 md:hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
-     <span>WPM: <strong id="wpmHud" class="text-emerald-400">–</strong></span>
+     <span>WPM: <strong id="wpmHud"   class="text-emerald-400">–</strong></span>
      <span class="text-slate-600">|</span>
      <span>Spd: <strong id="speedHud" class="text-blue-400">0</strong></span>
      <span class="text-slate-600">|</span>
@@ -283,9 +298,16 @@
  <script>
    "use strict";
 
+   /* ─────────────────────────────────────────────────────────────────────────
+      ALL globals declared here at the top of the script so there are zero
+      Temporal Dead Zone issues — the previous crash was caused by functions
+      referencing `captureAction` before it was declared with `let`.
+   ───────────────────────────────────────────────────────────────────────── */
+
    var STORAGE_KEY = "canvas_teleprompter_v7";
    var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
+   // ── Default persisted state ───────────────────────────────────────────────
    var defaultState = {
      text:
        "Welcome to the Canvas Teleprompter.\n\n" +
@@ -302,19 +324,19 @@
        "- R resets scroll position\n" +
        "- Escape exits the prompter\n\n" +
        "Uploading a new script resets speed and position.",
-     fileName: "teleprompter-script.txt",
-     flipH: false,
-     flipV: false,
-     textSize: 48,
-     indent: 15,
-     textColor: "#ffffff",
-     bgColor: "#000000",
-     bgOpacity: 100,
+     fileName:     "teleprompter-script.txt",
+     flipH:        false,
+     flipV:        false,
+     textSize:     48,
+     indent:       15,
+     textColor:    "#ffffff",
+     bgColor:      "#000000",
+     bgOpacity:    100,
      focusEnabled: true,
-     focusHeight: 90,
-     focusOffset: 35,
-     voiceMode: false,
-     startSpeed: 2,
+     focusHeight:  90,
+     focusOffset:  35,
+     voiceMode:    false,
+     startSpeed:   2,
      bindings: {
        speedUp:   { code: "PageDown", key: "PageDown" },
        speedDown: { code: "PageUp",   key: "PageUp"   },
@@ -326,57 +348,74 @@
 
    var state = deepClone(defaultState);
 
+   // ── Canvas / layout ───────────────────────────────────────────────────────
    var canvas, ctx;
    var dpr = 1, canvasW = 0, canvasH = 0;
    var lines = [], lineWords = [], lineCharStarts = [];
    var lineHeight = 0, startY = 0, focusY = 0, maxScroll = 0;
 
-   var scrollPos = 0;
+   // ── Scroll / playback ─────────────────────────────────────────────────────
+   var scrollPos    = 0;
    var currentSpeed = 0;
-   var isScrolling = false;
-   var rafId = null;
-   var lastTime = 0;
+   var isScrolling  = false;
+   var rafId        = null;
+   var lastTime     = 0;
 
+   // ── Speech recognition ────────────────────────────────────────────────────
    var recognition = null;
-   var isListening = false;
+   var isListening  = false;
 
-   var voiceCurrentLine = 0;
-   var voicePhantom = 0;
-   var voiceCurrentWPM = 150;
-   var voicePrevLine = 0;
-   var voicePrevLineTime = 0;
-   var voiceSessionStart = 0;
-   var voiceFinalBuf = "";
-   var voiceInterimBuf = "";
+   // ── Voice engine state ────────────────────────────────────────────────────
+   var voiceCurrentLine  = 0;     // Line being read — drives yellow highlight
+   var voicePhantom      = 0;     // Phantom position (px) — creeps every frame
+   var voiceCurrentWPM   = 150;   // Adaptive WPM
+   var voicePrevLine     = 0;     // Last line index used for WPM measurement
+   var voicePrevLineTime = 0;     // Timestamp of last WPM measurement point
+   var voiceSessionStart = 0;     // Session start for plausibility guard
+   var voiceFinalBuf     = "";    // Accumulated final transcript (trimmed)
+   var voiceInterimBuf   = "";    // Latest interim transcript
 
-   var els = {};
-   var captureAction = null;
+   // ── UI ───────────────────────────────────────────────────────────────────
+   var els           = {};
+   var captureAction = null;      // Declared here — no Temporal Dead Zone
 
+   // ── Layout / scroll constants ─────────────────────────────────────────────
    var VOICE_LINE_SPACING  = 1.8;
    var MANUAL_LINE_SPACING = 1.45;
    var REMOTE_SPEED_STEP   = 0.25;
    var PX_PER_SPEED_UNIT   = 18;
 
-   var V_MIN_WPM  = 80;
-   var V_MAX_WPM  = 280;
-   var V_SPRING_K = 8;
-   var V_MAX_PX_S = 700;
-   var V_SEARCH   = 6;
-   var V_THRESH   = 0.20;
-   var V_BURST    = 1.6;
+   // ── Voice tuning constants ────────────────────────────────────────────────
+   var V_MIN_WPM   = 80;    // Adaptive WPM floor
+   var V_MAX_WPM   = 280;   // Adaptive WPM ceiling
+   var V_SPRING_K  = 8;     // Proportional gain: scroll chases phantom
+   var V_MAX_PX_S  = 700;   // Hard speed cap px/s
+   var V_SEARCH    = 6;     // Lines ahead to search each recognition event
+   var V_THRESH    = 0.20;  // Min word-match fraction to accept a line
+   var V_BURST     = 1.6;   // Plausibility: allow up to 1.6× V_MAX_WPM as burst
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      UTILITIES
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function deepClone(v) { return JSON.parse(JSON.stringify(v)); }
-   function byId(id) { return document.getElementById(id); }
+   function byId(id)      { return document.getElementById(id);  }
 
+   // Safe element property setter — silently skips if element is null.
    function setProp(id, prop, value) {
      var el = els[id];
      if (el) el[prop] = value;
    }
 
+   // Safe addEventListener wrapper.
    function listen(id, event, fn) {
      var el = els[id];
      if (el) el.addEventListener(event, fn);
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      INIT
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function init() {
      cacheElements();
@@ -385,7 +424,7 @@
      renderKeyBindings();
      updateFlipButtons();
      canvas = els.prompterCanvas;
-     ctx = canvas.getContext("2d", { alpha: false });
+     ctx    = canvas.getContext("2d", { alpha: false });
      setupSpeechRecognition();
      wireUI();
    }
@@ -410,6 +449,10 @@
      });
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      STATE PERSISTENCE
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function loadState() {
      try {
        var raw = localStorage.getItem(STORAGE_KEY);
@@ -425,6 +468,10 @@
    function saveState() {
      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      SETUP PAGE
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function renderSetup() {
      setProp("scriptInput",       "value",       state.text);
@@ -467,21 +514,24 @@
      });
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      SPEECH RECOGNITION SETUP
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function setupSpeechRecognition() {
      if (!SR) {
        setProp("voiceModeInput", "disabled", true);
-       setProp("voiceModeInput", "checked", false);
+       setProp("voiceModeInput", "checked",  false);
        state.voiceMode = false;
        return;
      }
-
      recognition = new SR();
-     recognition.continuous = true;
+     recognition.continuous     = true;
      recognition.interimResults = true;
-     recognition.lang = "en-US";
+     recognition.lang           = "en-US";
 
      recognition.onresult = handleSpeechResult;
-     recognition.onerror = function(ev) {
+     recognition.onerror  = function(ev) {
        if (ev.error !== "no-speech") console.warn("SR error:", ev.error);
      };
      recognition.onend = function() {
@@ -494,10 +544,14 @@
      };
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      UI WIRING
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function wireUI() {
-     listen("startPromptBtn", "click", startPrompter);
-     listen("mobileExitBtn", "click", stopPrompter);
-     listen("resetScriptBtn", "click", resetScriptPositionKeepSpeed);
+     listen("startPromptBtn",   "click", startPrompter);
+     listen("mobileExitBtn",    "click", stopPrompter);
+     listen("resetScriptBtn",   "click", resetScriptPositionKeepSpeed);
 
      listen("clearSettingsBtn", "click", function() {
        if (!confirm("Reset all settings and script?")) return;
@@ -506,15 +560,10 @@
      });
 
      listen("flipHBtn", "click", function() {
-       state.flipH = !state.flipH;
-       saveState();
-       updateFlipButtons();
+       state.flipH = !state.flipH; saveState(); updateFlipButtons();
      });
-
      listen("flipVBtn", "click", function() {
-       state.flipV = !state.flipV;
-       saveState();
-       updateFlipButtons();
+       state.flipV = !state.flipV; saveState(); updateFlipButtons();
      });
 
      bindRange("textSizeInput",    "textSize",    "textSizeLabel",    "px");
@@ -523,27 +572,15 @@
      bindRange("focusOffsetInput", "focusOffset", "focusOffsetLabel", "%");
      bindRange("startSpeedInput",  "startSpeed",  "startSpeedLabel",  "");
 
-     listen("textColorInput", "input", function() {
-       state.textColor = els.textColorInput.value;
-       saveState();
-     });
-
-     listen("bgColorInput", "input", function() {
-       state.bgColor = els.bgColorInput.value;
-       saveState();
-     });
-
-     listen("focusEnabledInput", "change", function() {
-       state.focusEnabled = els.focusEnabledInput.checked;
-       saveState();
-     });
+     listen("textColorInput",    "input",  function() { state.textColor = els.textColorInput.value; saveState(); });
+     listen("bgColorInput",      "input",  function() { state.bgColor   = els.bgColorInput.value;   saveState(); });
+     listen("focusEnabledInput", "change", function() { state.focusEnabled = els.focusEnabledInput.checked; saveState(); });
 
      listen("voiceModeInput", "change", function() {
        state.voiceMode = els.voiceModeInput.checked;
        saveState();
        applyVoiceModeChange();
      });
-
      listen("voiceToggleBtn", "click", function() {
        state.voiceMode = !state.voiceMode;
        setProp("voiceModeInput", "checked", state.voiceMode);
@@ -553,51 +590,31 @@
 
      listen("presenterPresetBtn", "click", function() {
        state.bindings = deepClone(defaultState.bindings);
-       saveState();
-       renderKeyBindings();
+       saveState(); renderKeyBindings();
        alert("Remote preset applied: PageDown speeds up, PageUp slows down.");
      });
-
      listen("resetBindingsBtn", "click", function() {
        state.bindings = deepClone(defaultState.bindings);
-       saveState();
-       renderKeyBindings();
+       saveState(); renderKeyBindings();
      });
 
      document.querySelectorAll(".key-btn").forEach(function(btn) {
-       btn.addEventListener("click", function() {
-         startCapture(btn.dataset.bind);
-       });
+       btn.addEventListener("click", function() { startCapture(btn.dataset.bind); });
      });
 
-     listen("importBtn", "click", function() {
-       if (els.fileInput) els.fileInput.click();
-     });
+     listen("importBtn",    "click",  function() { if (els.fileInput) els.fileInput.click(); });
+     listen("fileInput",    "change", importScriptFile);
+     listen("exportTxtBtn", "click",  exportTxtFile);
 
-     listen("fileInput", "change", importScriptFile);
-     listen("exportTxtBtn", "click", exportTxtFile);
-
-     listen("scriptInput", "input", function() {
-       state.text = els.scriptInput.value;
-       saveState();
-     });
-
+     listen("scriptInput",   "input", function() { state.text     = els.scriptInput.value;  saveState(); });
      listen("fileNameInput", "input", function() {
-       state.fileName = els.fileNameInput.value || "teleprompter-script.txt";
-       saveState();
+       state.fileName = els.fileNameInput.value || "teleprompter-script.txt"; saveState();
      });
 
      window.addEventListener("keydown", handleKeyDown, { passive: false });
-
      window.addEventListener("resize", function() {
        if (!els.prompterPage || els.prompterPage.classList.contains("hidden")) return;
        prepareCanvasAndText();
-       if (state.voiceMode) {
-         scrollPos = Math.max(0, Math.min(maxScroll, scrollPos));
-         voicePhantom = Math.max(voicePhantom, scrollPos);
-       } else {
-         scrollPos = Math.max(0, Math.min(maxScroll, scrollPos));
-       }
        drawCanvasFrame();
      });
    }
@@ -607,9 +624,6 @@
        prepareCanvasAndText();
        resetVoiceController();
        scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
-       currentSpeed = 0;
-       isScrolling = false;
-       drawCanvasFrame();
      }
      syncVoiceListening();
    }
@@ -617,13 +631,11 @@
    function bindRange(inputId, stateKey, labelId, suffix) {
      var input = els[inputId];
      if (!input) return;
-
      input.addEventListener("input", function() {
        var v = Number(input.value);
        state[stateKey] = v;
        setProp(labelId, "textContent", v + suffix);
        saveState();
-
        if (els.prompterPage && !els.prompterPage.classList.contains("hidden")) {
          prepareCanvasAndText();
          drawCanvasFrame();
@@ -634,7 +646,6 @@
    function startCapture(action) {
      captureAction = action;
      renderKeyBindings();
-
      var handler = function(ev) {
        ev.preventDefault();
        ev.stopPropagation();
@@ -644,14 +655,16 @@
        renderKeyBindings();
        window.removeEventListener("keydown", handler, true);
      };
-
      window.addEventListener("keydown", handler, true);
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      FILE I/O
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function importScriptFile(event) {
      var file = event.target.files && event.target.files[0];
      if (!file) return;
-
      var reader = new FileReader();
      reader.onload = function() {
        var text = String(reader.result || "");
@@ -662,29 +675,24 @@
            .replace(/[{}]/g, "")
            .trim();
        }
-
        state.text = text;
        state.fileName = file.name;
-       setProp("scriptInput", "value", text);
+       setProp("scriptInput",   "value", text);
        setProp("fileNameInput", "value", file.name);
-
-       scrollPos = 0;
+       scrollPos    = 0;
        currentSpeed = 0;
-       isScrolling = false;
+       isScrolling  = false;
        resetVoiceController();
        saveState();
-
-       if (els.fileInput) els.fileInput.value = "";
      };
-
      reader.readAsText(file);
    }
 
    function exportTxtFile() {
-     var blob = new Blob([state.text || ""], { type: "text/plain" });
-     var url = URL.createObjectURL(blob);
+     var blob   = new Blob([state.text || ""], { type: "text/plain" });
+     var url    = URL.createObjectURL(blob);
      var anchor = document.createElement("a");
-     anchor.href = url;
+     anchor.href     = url;
      anchor.download = state.fileName || "teleprompter-script.txt";
      document.body.appendChild(anchor);
      anchor.click();
@@ -692,24 +700,20 @@
      URL.revokeObjectURL(url);
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      KEYBOARD
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function handleKeyDown(event) {
      if (captureAction) return;
      if (!els.prompterPage || els.prompterPage.classList.contains("hidden")) return;
-
      event.preventDefault();
 
      var code = event.code;
-     var key = event.key;
+     var key  = event.key;
 
-     if (matchBinding("exit", code, key)) {
-       stopPrompter();
-       return;
-     }
-
-     if (matchBinding("reset", code, key)) {
-       resetScriptPositionKeepSpeed();
-       return;
-     }
+     if (matchBinding("exit",  code, key)) { stopPrompter();                 return; }
+     if (matchBinding("reset", code, key)) { resetScriptPositionKeepSpeed(); return; }
 
      if (matchBinding("toggle", code, key)) {
        if (state.voiceMode) {
@@ -717,7 +721,6 @@
          setProp("voiceModeInput", "checked", false);
          saveState();
          syncVoiceListening();
-         currentSpeed = 0;
        } else {
          if (!isScrolling) {
            isScrolling = true;
@@ -731,13 +734,12 @@
 
      if (!state.voiceMode) {
        if (matchBinding("speedUp", code, key) || isNextKey(code, key)) {
-         isScrolling = true;
+         isScrolling  = true;
          currentSpeed = Math.round((currentSpeed + REMOTE_SPEED_STEP) * 100) / 100;
          return;
        }
-
        if (matchBinding("speedDown", code, key) || isPrevKey(code, key)) {
-         isScrolling = true;
+         isScrolling  = true;
          currentSpeed = Math.round((currentSpeed - REMOTE_SPEED_STEP) * 100) / 100;
          return;
        }
@@ -754,115 +756,59 @@
    function isNextKey(c, k) {
      return c === "PageDown" || k === "PageDown" || c === "ArrowRight" || k === "ArrowRight";
    }
-
    function isPrevKey(c, k) {
      return c === "PageUp" || k === "PageUp" || c === "ArrowLeft" || k === "ArrowLeft";
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      PROMPTER LIFECYCLE
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function startPrompter() {
      if (!state.text || !state.text.trim()) {
        alert("Please enter or import a script first.");
        return;
      }
-
-     if (els.setupPage) els.setupPage.classList.add("hidden");
+     if (els.setupPage)    els.setupPage.classList.add("hidden");
      if (els.prompterPage) els.prompterPage.classList.remove("hidden");
      document.body.classList.add("prompt-lock");
 
      prepareCanvasAndText();
-     resetVoiceController();
-
-     scrollPos = state.voiceMode ? getVoiceStartScroll() : 0;
+     scrollPos    = state.voiceMode ? getVoiceStartScroll() : 0;
+     isScrolling  = false;
      currentSpeed = 0;
-     isScrolling = false;
 
+     resetVoiceController();
      syncVoiceListening();
      updateVoiceUI();
-     updateHud();
-     drawCanvasFrame();
-
-     if (rafId) cancelAnimationFrame(rafId);
-     lastTime = performance.now();
-     rafId = requestAnimationFrame(animationLoop);
-   }
-
-   function stopPrompter() {
-     if (rafId) {
-       cancelAnimationFrame(rafId);
-       rafId = null;
-     }
-
-     isScrolling = false;
-     currentSpeed = 0;
-     stopVoiceListening();
-
-     if (els.prompterPage) els.prompterPage.classList.add("hidden");
-     if (els.setupPage) els.setupPage.classList.remove("hidden");
-     document.body.classList.remove("prompt-lock");
-
-     renderSetup();
-     updateFlipButtons();
-     renderKeyBindings();
-   }
-
-   function resetScriptPositionKeepSpeed() {
-     prepareCanvasAndText();
-
-     if (state.voiceMode) {
-       resetVoiceController();
-       scrollPos = getVoiceStartScroll();
-       currentSpeed = 0;
-       isScrolling = false;
-     } else {
-       scrollPos = 0;
-     }
-
-     scrollPos = Math.max(0, Math.min(maxScroll, scrollPos));
-     drawCanvasFrame();
-     updateHud();
-   }
-
-   function prepareCanvasAndText() {
-     dpr = Math.max(1, window.devicePixelRatio || 1);
-     canvasW = Math.max(1, window.innerWidth);
-     canvasH = Math.max(1, window.innerHeight);
-
-     canvas.width = Math.round(canvasW * dpr);
-     canvas.height = Math.round(canvasH * dpr);
-     canvas.style.width = canvasW + "px";
-     canvas.style.height = canvasH + "px";
-
-     var mult = state.voiceMode ? VOICE_LINE_SPACING : MANUAL_LINE_SPACING;
+     drawCanvasFrame();iceMode ? VOICE_LINE_SPACING : MANUAL_LINE_SPACING;
      lineHeight = Math.round(state.textSize * mult);
-     focusY = canvasH * (state.focusOffset / 100);
-     startY = canvasH - lineHeight * 3;
+     focusY     = canvasH * (state.focusOffset / 100);
+     startY     = canvasH - lineHeight * 3;
 
-     var left = canvasW * (state.indent / 100);
+     var left      = canvasW * (state.indent / 100);
      var textWidth = Math.max(100, canvasW - left * 2);
 
-     ctx.font = state.textSize + "px Arial, Helvetica, sans-serif";
-     lines = wrapText(state.text || "", textWidth);
+     ctx.font  = state.textSize + "px Arial, Helvetica, sans-serif";
+     lines     = wrapText(state.text || "", textWidth);
      lineWords = lines.map(function(l) { return splitWords(l); });
      calculateLineCharStarts();
 
+     // maxScroll: the text glyph centre of the last line sits at focusY.
+     // Uses textSize/2 (not lineHeight/2) so the visible text — not the
+     // line-spacing box — is centred in the focus bar.
      var lastIdx = Math.max(0, lines.length - 1);
      maxScroll = Math.max(0, startY + lastIdx * lineHeight + (state.textSize / 2) - focusY);
    }
 
    function wrapText(text, maxWidth) {
      var result = [];
-     var paras = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-
+     var paras  = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
      for (var p = 0; p < paras.length; p++) {
        var para = paras[p];
-       if (!para.trim()) {
-         result.push("");
-         continue;
-       }
-
+       if (!para.trim()) { result.push(""); continue; }
        var words = para.split(/\s+/);
-       var line = "";
-
+       var line  = "";
        for (var w = 0; w < words.length; w++) {
          var test = line ? line + " " + words[w] : words[w];
          if (ctx.measureText(test).width <= maxWidth || !line) {
@@ -872,10 +818,8 @@
            line = words[w];
          }
        }
-
        if (line) result.push(line);
      }
-
      return result;
    }
 
@@ -887,6 +831,10 @@
        total += lines[i].length + 1;
      }
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      ANIMATION LOOP
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function animationLoop(now) {
      var dt = Math.min((now - lastTime) / 1000, 0.05);
@@ -906,6 +854,10 @@
      rafId = requestAnimationFrame(animationLoop);
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      CANVAS DRAW
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function drawCanvasFrame() {
      ctx.save();
      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -918,30 +870,29 @@
      ctx.scale(state.flipH ? -1 : 1, state.flipV ? -1 : 1);
      ctx.translate(-canvasW / 2, -canvasH / 2);
 
-     ctx.font = state.textSize + "px Arial, Helvetica, sans-serif";
+     ctx.font         = state.textSize + "px Arial, Helvetica, sans-serif";
      ctx.textBaseline = "top";
 
-     var left = canvasW * (state.indent / 100);
-     var first = Math.max(0, Math.floor((scrollPos - startY) / lineHeight) - 3);
-     var last = Math.min(lines.length - 1, Math.ceil((scrollPos + canvasH - startY) / lineHeight) + 3);
+     var left  = canvasW * (state.indent / 100);
+     var first = Math.max(0,              Math.floor((scrollPos - startY) / lineHeight) - 3);
+     var last  = Math.min(lines.length - 1, Math.ceil((scrollPos + canvasH - startY) / lineHeight) + 3);
 
      for (var i = first; i <= last; i++) {
        var y = startY + i * lineHeight - scrollPos;
+       // Yellow highlight on the line currently matched by voice recognition.
        ctx.fillStyle = (state.voiceMode && i === voiceCurrentLine) ? "#facc15" : state.textColor;
        ctx.fillText(lines[i], left, y);
      }
 
      if (state.focusEnabled) {
        var barTop = focusY - state.focusHeight / 2;
-       ctx.fillStyle = "rgba(16,185,129,0.16)";
+       ctx.fillStyle   = "rgba(16,185,129,0.16)";
        ctx.fillRect(0, barTop, canvasW, state.focusHeight);
        ctx.strokeStyle = "rgba(16,185,129,0.45)";
-       ctx.lineWidth = 2;
+       ctx.lineWidth   = 2;
        ctx.beginPath();
-       ctx.moveTo(0, barTop);
-       ctx.lineTo(canvasW, barTop);
-       ctx.moveTo(0, barTop + state.focusHeight);
-       ctx.lineTo(canvasW, barTop + state.focusHeight);
+       ctx.moveTo(0, barTop);                     ctx.lineTo(canvasW, barTop);
+       ctx.moveTo(0, barTop + state.focusHeight); ctx.lineTo(canvasW, barTop + state.focusHeight);
        ctx.stroke();
      }
 
@@ -959,38 +910,30 @@
 
    function updateHud() {
      var inVoice = state.voiceMode && isListening;
-     setProp("wpmHud", "textContent", inVoice ? Math.round(voiceCurrentWPM) : "–");
+     setProp("wpmHud",   "textContent", inVoice ? Math.round(voiceCurrentWPM) : "–");
      setProp("speedHud", "textContent", inVoice ? Math.round(currentSpeed) : currentSpeed.toFixed(2));
-     setProp("modeHud", "textContent", inVoice
+     setProp("modeHud",  "textContent", inVoice
        ? ("Voice L" + Math.min(lines.length, voiceCurrentLine + 1))
        : (isScrolling ? "Scrolling" : "Paused"));
      updateVoiceUI();
    }
 
-   function syncVoiceListening() {
-     if (!recognition) {
-       updateVoiceUI();
-       return;
-     }
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE LISTENING CONTROL
+   ═════════════════════════════════════════════════════════════════════════ */
 
+   function syncVoiceListening() {
+     if (!recognition) { updateVoiceUI(); return; }
      if (state.voiceMode) {
-       try {
-         recognition.start();
-         isListening = true;
-       } catch (e) {
-         isListening = true;
-       }
+       try { recognition.start(); isListening = true; } catch (e) { isListening = true; }
      } else {
        stopVoiceListening();
      }
-
      updateVoiceUI();
    }
 
    function stopVoiceListening() {
-     if (recognition) {
-       try { recognition.stop(); } catch (e) {}
-     }
+     if (recognition) { try { recognition.stop(); } catch (e) {} }
      isListening = false;
      updateVoiceUI();
    }
@@ -1001,12 +944,18 @@
      if (els.voiceToggleBtn) els.voiceToggleBtn.classList.toggle("voice-on", on);
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — scroll position helpers
+   ═════════════════════════════════════════════════════════════════════════ */
+
+   // Scroll that places line[i]'s text glyph centre exactly at focusY.
    function idealScrollForLine(i) {
      var idx = Math.max(0, Math.min(lines.length - 1, i));
      return Math.max(0, Math.min(maxScroll,
        startY + idx * lineHeight + (state.textSize / 2) - focusY));
    }
 
+   // Opening voice scroll: line 0 text glyph centre at focusY.
    function getVoiceStartScroll() {
      return Math.max(0, startY + (state.textSize / 2) - focusY);
    }
@@ -1027,40 +976,71 @@
      return n;
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — reset
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function resetVoiceController() {
-     var now = performance.now();
-     voiceCurrentLine = 0;
-     voicePhantom = getVoiceStartScroll();
-     voiceCurrentWPM = 150;
-     voicePrevLine = 0;
+     var now           = performance.now();
+     voiceCurrentLine  = 0;
+     voicePhantom      = getVoiceStartScroll();
+     voiceCurrentWPM   = 150;
+     voicePrevLine     = 0;
      voicePrevLineTime = now;
      voiceSessionStart = now;
-     voiceFinalBuf = "";
-     voiceInterimBuf = "";
+     voiceFinalBuf     = "";
+     voiceInterimBuf   = "";
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — per-frame scroll update
+
+      Design: Phantom Cursor + Spring
+
+      Every frame the phantom advances at baseSpeed (px/s derived from WPM
+      and the total script word count).  This guarantees scrolling is always
+      continuous even during recognition gaps.
+
+      The spring (proportional controller, gain = V_SPRING_K) drives
+      scrollPos toward the phantom.  When a recognition event pushes the
+      phantom ahead, the spring accelerates to catch up.  When the user
+      pauses, the phantom slows (fewer words → smaller baseSpeed) and the
+      spring naturally decelerates.  There are no jumps — only smooth
+      speed changes.
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function updateVoiceScroll(dt) {
      var totalWords = getTotalWordCount();
-     var wps = voiceCurrentWPM / 60.0;
+     var wps        = voiceCurrentWPM / 60.0;
 
+     // px/s the phantom should travel so the whole script scrolls in exactly
+     // the time it takes to speak totalWords at voiceCurrentWPM.
      var baseSpeed = (totalWords > 0)
        ? (maxScroll * wps) / totalWords
        : 50;
 
+     // Phantom always moves forward, capped at end of script.
      voicePhantom = Math.min(maxScroll, voicePhantom + baseSpeed * dt);
 
+     // Spring: positive error → we are behind → accelerate forward.
+     //         Zero/negative error → we are at or ahead of phantom → coast.
      var error = voicePhantom - scrollPos;
      var speed = Math.max(0, Math.min(V_MAX_PX_S, error * V_SPRING_K));
      currentSpeed = speed;
-     scrollPos += speed * dt;
-     scrollPos = Math.max(0, Math.min(maxScroll, scrollPos));
+     scrollPos   += speed * dt;
+     scrollPos    = Math.max(0, Math.min(maxScroll, scrollPos));
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — speech result handler
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function handleSpeechResult(event) {
      if (!state.voiceMode || !lines.length) return;
 
      var now = performance.now();
 
+     // 1. Collect transcript into buffers.
      for (var i = event.resultIndex; i < event.results.length; i++) {
        if (event.results[i].isFinal) {
          voiceFinalBuf += event.results[i][0].transcript + " ";
@@ -1069,52 +1049,74 @@
        }
      }
 
+     // Trim final buffer — keep last 50 words so stale text from lines
+     // already passed doesn't bias future matches.
      var fw = splitWords(voiceFinalBuf);
      if (fw.length > 50) voiceFinalBuf = fw.slice(-50).join(" ") + " ";
 
+     // 2. Build match corpus: last 12 finals + full current interim.
      var corpus = splitWords(voiceFinalBuf).slice(-12).concat(splitWords(voiceInterimBuf));
      if (!corpus.length) return;
 
+     // 3. Find the best matching line within search window.
      var match = findBestMatch(corpus, now);
      if (!match) return;
 
      var lineIndex = match.lineIndex;
-     var progress = match.progress;
+     var progress  = match.progress;
 
+     // 4. Plausibility guard — reject if physically impossible.
      if (!isLinePlausible(lineIndex, now)) return;
+
+     // 5. Never move recognition backwards.
      if (lineIndex < voiceCurrentLine) return;
 
+     // 6. Adaptive WPM — measure between successive line advances.
      if (lineIndex > voicePrevLine) {
        var wordsAdv = getCumulativeWordsUpTo(lineIndex) - getCumulativeWordsUpTo(voicePrevLine);
-       var timeAdv = (now - voicePrevLineTime) / 1000;
-
+       var timeAdv  = (now - voicePrevLineTime) / 1000;
        if (wordsAdv > 0 && timeAdv > 0.3) {
          var measured = (wordsAdv / timeAdv) * 60;
          if (measured >= V_MIN_WPM && measured <= V_MAX_WPM) {
+           // Exponential moving average: 70% history, 30% new measurement.
            voiceCurrentWPM = voiceCurrentWPM * 0.70 + measured * 0.30;
          }
        }
-
-       voicePrevLine = lineIndex;
+       voicePrevLine     = lineIndex;
        voicePrevLineTime = now;
      }
 
+     // 7. Update the highlighted line.
      voiceCurrentLine = lineIndex;
 
+     // 8. Push phantom forward to the recognised scroll position.
+     //    Phantom NEVER goes backward — use Math.max.
      var lineIdeal = idealScrollForLine(lineIndex);
      var nextIdeal = idealScrollForLine(Math.min(lines.length - 1, lineIndex + 1));
      var recScroll = lineIdeal + Math.max(0, Math.min(1, progress)) * (nextIdeal - lineIdeal);
      if (recScroll > voicePhantom) voicePhantom = recScroll;
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — line matching
+
+      Uses a bag-of-words approach: what fraction of the LINE's words appear
+      in the corpus?  Duplicate words are handled via a frequency map so a
+      repeated word in the corpus counts once per occurrence in the line.
+
+      Score    = matched / lineWordsArr.length
+      Progress = (last matched word index + 1) / lineWordsArr.length
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function findBestMatch(corpus, now) {
-     var maxPlaus = getMaxPlausibleLine(now);
-     var searchEnd = Math.min(lines.length - 1, Math.max(voiceCurrentLine + V_SEARCH, maxPlaus));
-     var best = null;
+     var maxPlaus  = getMaxPlausibleLine(now);
+     var searchEnd = Math.min(lines.length - 1,
+                      Math.max(voiceCurrentLine + V_SEARCH, maxPlaus));
+     var best      = null;
 
      for (var i = voiceCurrentLine; i <= searchEnd; i++) {
        var lw = lineWords[i];
-       if (!lw || lw.length === 0) continue;
+       if (!lw || lw.length === 0) continue;  // skip blank paragraph-break lines
 
        var result = scoreMatch(lw, corpus);
        if (!best || result.score > best.score) {
@@ -1128,13 +1130,14 @@
    function scoreMatch(lineWordsArr, corpus) {
      if (!lineWordsArr.length || !corpus.length) return { score: 0, progress: 0 };
 
+     // Frequency map of the corpus (consumed as matches are found).
      var avail = {};
      for (var j = 0; j < corpus.length; j++) {
        var cw = corpus[j];
        avail[cw] = (avail[cw] || 0) + 1;
      }
 
-     var matched = 0;
+     var matched      = 0;
      var lastMatchIdx = -1;
 
      for (var i = 0; i < lineWordsArr.length; i++) {
@@ -1146,16 +1149,24 @@
        }
      }
 
-     var score = matched / lineWordsArr.length;
+     var score    = matched / lineWordsArr.length;
      var progress = (lastMatchIdx >= 0) ? (lastMatchIdx + 1) / lineWordsArr.length : 0;
      return { score: score, progress: progress };
    }
 
+   /* ═════════════════════════════════════════════════════════════════════════
+      VOICE ENGINE — plausibility guard
+
+      Prevents a stray recognition result from jumping far ahead.
+      Allows up to V_BURST × V_MAX_WPM as a speaking burst.
+      Always allows at least the immediate next two lines.
+   ═════════════════════════════════════════════════════════════════════════ */
+
    function getMaxPlausibleLine(now) {
-     var elapsed = Math.max(0.1, (now - voiceSessionStart) / 1000);
+     var elapsed  = Math.max(0.1, (now - voiceSessionStart) / 1000);
      var maxWords = elapsed * (V_MAX_WPM / 60) * V_BURST;
-     var count = 0;
-     var maxLine = voiceCurrentLine + 1;
+     var count    = 0;
+     var maxLine  = voiceCurrentLine + 1; // always allow next line minimum
 
      for (var i = 0; i < lines.length; i++) {
        count += lineWords[i] ? lineWords[i].length : 0;
@@ -1165,13 +1176,16 @@
          break;
        }
      }
-
      return Math.min(lines.length - 1, maxLine);
    }
 
    function isLinePlausible(lineIndex, now) {
      return lineIndex <= getMaxPlausibleLine(now);
    }
+
+   /* ═════════════════════════════════════════════════════════════════════════
+      TEXT NORMALISATION
+   ═════════════════════════════════════════════════════════════════════════ */
 
    function normalise(text) {
      return String(text || "")
@@ -1186,6 +1200,7 @@
      return clean ? clean.split(/\s+/) : [];
    }
 
+   /* ─── Bootstrap ─────────────────────────────────────────────────────────── */
    document.addEventListener("DOMContentLoaded", init);
  </script>
 </body>
