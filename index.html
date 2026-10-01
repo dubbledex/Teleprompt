@@ -342,12 +342,12 @@
       </button>
     </div>
 
-    <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-slate-300 opacity-100 md:opacity-0 md:hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
-      <span>Speed: <strong id="speedHud" class="text-blue-400">0</strong></span>
+    <div id="hud" class="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 border border-slate-700 rounded-full px-6 py-3 text-sm text-white opacity-100 md:opacity-0 md:hover:opacity-100 transition-opacity z-30 flex gap-4 shadow-2xl">
+      <span class="text-white">Speed: <strong id="speedHud" class="text-white">0x</strong></span>
       <span class="text-slate-600">|</span>
-      <span>WPM: <strong id="wpmHud" class="text-emerald-400">0</strong></span>
+      <span class="text-white">WPM: <strong id="wpmHud" class="text-white">0</strong></span>
       <span class="text-slate-600">|</span>
-      <span id="modeHud" class="text-emerald-400">Manual</span>
+      <span id="modeHud" class="text-white">Manual</span>
     </div>
   </section>
 
@@ -431,7 +431,8 @@
 
     let captureAction = null;
 
-    const remoteSpeedStep = 0.25;
+    // Increased from 0.25 to 0.5 for faster manual adjustment
+    const remoteSpeedStep = 0.5;
     const pixelsPerSecondPerSpeedUnit = 18;
 
     const voiceLineSpacingMultiplier = 1.8;
@@ -496,26 +497,26 @@
 
     function init() {
         try {
- 
+ 
             cacheElements();
             loadState();
             pruneExpiredScripts();
- 
+ 
             renderSetup();
             renderKeyBindings();
             renderScriptLibrary();
             updateFlipButtons();
- 
+ 
             canvas = els.prompterCanvas;
             ctx = canvas.getContext("2d", { alpha: false });
- 
+ 
             setupSpeechRecognition();
             wireUI();
- 
+ 
             console.log(
             "Teleprompter loaded OK"
             );
- 
+ 
         } catch (err) {
             console.error(
             "Init failed:",
@@ -1305,7 +1306,8 @@
     }
 
     function updateHud() {
-      els.speedHud.textContent = currentSpeed.toFixed(2);
+      // Updated to show 'x' suffix and trim unnecessary decimals
+      els.speedHud.textContent = (parseFloat(currentSpeed.toFixed(1)) + 'x');
       els.wpmHud.textContent = state.voiceMode && isListening ? Math.round(voiceCurrentWPM) : "0";
 
       if (state.voiceMode && isListening) {
