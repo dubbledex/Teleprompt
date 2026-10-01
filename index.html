@@ -1493,11 +1493,12 @@
       // aggressively close focus-bar error, not just gently chase it.
       const focusError = focusTarget - scrollPos;
       // Never run ahead of recognised speech
-        if (focusError < -80) {
+       /* taken out for testing
+       if (focusError < -80) {
         currentSpeed *= 0.92;
         scrollPos += currentSpeed * dt;
         return;
-        }
+        } */
       const followSpeed = Math.max(0, focusError * voiceSpringFactor);
 
       // Extra catch-up if we are materially behind target.
@@ -1607,6 +1608,12 @@
         }
       }
 
+      console.log(
+        "Plausibility",
+      lineIndex,
+      getMaxPlausibleLine(now)
+      );
+      
       if (!isLinePlausible(lineIndex, now))
         return;
     
@@ -1804,7 +1811,7 @@ return {
     }
 
     function isLinePlausible(lineIndex, now) {
-      return lineIndex <= getMaxPlausibleLine(now);
+        return true;
     }
 
     document.addEventListener("DOMContentLoaded", init);
