@@ -1786,7 +1786,6 @@ for (let start = 0; start < corpusLength; start++) {
     }
 }
 
-    if (maxRun < 2) {
         return {
         score: 0,
         progress: 0
@@ -1796,7 +1795,7 @@ for (let start = 0; start < corpusLength; start++) {
 return {
     score: bestScore,
     progress: bestProgress
-};
+    };
 }
 
     function getMaxPlausibleLine(now) {
