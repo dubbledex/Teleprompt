@@ -1537,7 +1537,7 @@
         speed = 0;
       }
 
-      currentSpeed = currentSpeed * 0.80 + speed * 0.20;
+      currentSpeed = currentSpeed * 0.55 + speed * 0.45;
       scrollPos += currentSpeed * dt;
       scrollPos = clamp(scrollPos, 0, maxScroll);
     }
@@ -1682,7 +1682,9 @@
         );
 
     }
-      voiceLineProgress = clamp(progress, 0.01, 1);
+    voiceLineProgress = (voiceLineProgress * 0.8) +(progress * 0.2);
+    
+    voiceLineProgress =clamp(voiceLineProgress,0.01,1);
 
       const lineScroll = getIdealScrollForLine(lineIndex);
       const nextScroll = getIdealScrollForLine(Math.min(lines.length - 1, lineIndex + 1));
