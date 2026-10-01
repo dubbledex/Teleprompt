@@ -1771,8 +1771,8 @@ for (let start = 0; start < corpusLength; start++) {
     }
 
     const score =
-        (matches / lineWordsArr.length) * 0.5 +
-        (maxRun / lineWordsArr.length) * 0.5;
+        (matches / lineWordsArr.length) * 0.25 +
+        (maxRun / lineWordsArr.length) * 0.75;
 
     if (score > bestScore) {
 
@@ -1785,6 +1785,13 @@ for (let start = 0; start < corpusLength; start++) {
                 : 0;
     }
 }
+
+    if (longestRun < 2) {
+        return {
+        score: 0,
+        progress: 0
+        };
+    }
 
 return {
     score: bestScore,
@@ -1816,7 +1823,7 @@ return {
     }
 
     function isLinePlausible(lineIndex, now) {
-        return true;
+        return lineIndex <= getMaxPlausibleLine(now);
     }
 
     document.addEventListener("DOMContentLoaded", init);
