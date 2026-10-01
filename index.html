@@ -456,7 +456,7 @@
      * Look much further ahead.
      * Prevents losing place in long scripts.
      */
-    const voiceSearchAheadLines = 60;
+    const voiceSearchAheadLines = 120;
 
     const voiceMatchThreshold = 0.12;
     const voiceStartThreshold = 0.18;
@@ -779,7 +779,8 @@
       recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = "en-US";
+      recognition.maxAlternatives = 3;
+      recognition.lang = "en-GB";
 
       recognition.onresult = handleSpeechResult;
       recognition.onerror = event => {
@@ -919,6 +920,15 @@
         scrollPos = clamp(scrollPos, 0, maxScroll);
         voicePhantomScroll = Math.max(voicePhantomScroll, scrollPos);
         drawCanvasFrame();
+      });
+
+      document.addEventListener("fullscreenchange", () => {
+        if (
+        !document.fullscreenElement &&
+        !els.prompterPage.classList.contains("hidden")
+        ) {
+        stopPrompter();
+        }
       });
     }
 
@@ -1130,6 +1140,21 @@
       els.prompterPage.classList.remove("hidden");
       document.body.classList.add("prompt-lock");
 
+      // Request fullscreen
+    try {
+        const elem = document.documentElement;
+
+        if (elem.requestFullscreen) {
+        elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+        elem.webkitRequestFullscreen();
+        } else if (elem.msRequestFullscreen) {
+        elem.msRequestFullscreen();
+        }
+    } catch (err) {
+    console.warn("Fullscreen failed:", err);
+    }
+
       prepareCanvasAndText();
       resetVoiceController();
 
@@ -1155,6 +1180,14 @@
       document.body.classList.remove("prompt-lock");
 
       stopVoiceListening();
+      // Exit fullscreen
+      try {
+      if (document.fullscreenElement) {
+      document.exitFullscreen();
+      }
+      } catch (err) {
+      console.warn("Failed to exit fullscreen:", err);
+      }
     }
 
     function resetScriptPositionKeepSpeed() {
@@ -1452,6 +1485,14 @@
       // Main improvement:
       // aggressively close focus-bar error, not just gently chase it.
       const focusError = focusTarget - scrollPos;
+      // Never run ahead of recognised speech
+        if (focusError < -20) {
+        currentSpeed *= 0.7;
+        if (currentSpeed < 5) {
+        currentSpeed = 0;
+        }
+        return;
+        }
       const followSpeed = Math.max(0, focusError * voiceSpringFactor);
 
       // Extra catch-up if we are materially behind target.
@@ -1560,8 +1601,8 @@
     
     if (
         lineIndex <
-        voiceCurrentLine - 8 &&
-        score < 0.55
+        voiceCurrentLine - 15 &&
+        score < 0.50
     ) {
         return;
     }
@@ -1646,93 +1687,86 @@
       return best && best.score >= voiceMatchThreshold ? best : null;
     }
 
-function scoreLineMatch(
-    lineWordsArr,
-    corpusWords
+    function scoreLineMatch(lineWordsArr, corpusWords) {
+
+if (
+    !lineWordsArr ||
+    !lineWordsArr.length ||
+    !corpusWords.length
 ) {
+    return {
+        score: 0,
+        progress: 0
+    };
+}
 
-    if (
-        !lineWordsArr ||
-        !lineWordsArr.length ||
-        !corpusWords.length
-    ) {
+let bestScore = 0;
+let bestProgress = 0;
 
-        return {
-            score: 0,
-            progress: 0
-        };
+const corpusLength = corpusWords.length;
 
-    }
+for (let start = 0; start < corpusLength; start++) {
 
-    let matched = 0;
-    let longestRun = 0;
-    let currentRun = 0;
-    let lastMatchIdx = -1;
+    let matches = 0;
+    let run = 0;
+    let maxRun = 0;
+    let furthestMatch = -1;
 
     for (
         let i = 0;
-        i < lineWordsArr.length;
+        i < lineWordsArr.length &&
+        start + i < corpusLength;
         i++
     ) {
 
-        const word =
-            lineWordsArr[i];
+        if (
+            lineWordsArr[i] ===
+            corpusWords[start + i]
+        ) {
 
-        const pos =
-            corpusWords.lastIndexOf(
-                word
-            );
+            matches++;
+            run++;
 
-        if (pos >= 0) {
-
-            matched++;
-
-            currentRun++;
-
-            if (
-                currentRun >
-                longestRun
-            ) {
-
-                longestRun =
-                    currentRun;
-
+            if (run > maxRun) {
+                maxRun = run;
             }
 
-            lastMatchIdx = i;
+            furthestMatch = i;
 
         } else {
 
-            currentRun = 0;
+            run = 0;
 
         }
     }
 
-    const progress =
-        lastMatchIdx >= 0
-            ? (lastMatchIdx + 1) /
-              lineWordsArr.length
-            : 0;
-
     const score =
-        (
-            matched /
-            lineWordsArr.length
-        ) * 0.55 +
-        (
-            longestRun /
-            lineWordsArr.length
-        ) * 0.45;
+        (matches / lineWordsArr.length) * 0.5 +
+        (maxRun / lineWordsArr.length) * 0.5;
 
-    return {
-        score,
-        progress
-    };
+    if (score > bestScore) {
+
+        bestScore = score;
+
+        bestProgress =
+            furthestMatch >= 0
+                ? (furthestMatch + 1) /
+                  lineWordsArr.length
+                : 0;
+    }
+}
+
+return {
+    score: bestScore,
+    progress: bestProgress
+};
 }
 
     function getMaxPlausibleLine(now) {
       const elapsedSec = Math.max(0.1, (now - voiceSessionStartTime) / 1000);
       const maxWords = elapsedSec * (voiceMaxWPM / 60) * plausibilityBurstMultiplier;
+      const voiceMinWPM = 70;
+      const voiceMaxWPM = 260;
 
       let count = 0;
       let maxLine = Math.min(lines.length - 1, voiceCurrentLine + 1);
