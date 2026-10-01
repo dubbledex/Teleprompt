@@ -466,6 +466,8 @@
     const voiceSilenceStopMs = 2600;
 
     const voiceCruiseMinPxPerSec = 14;
+    const voiceMinWPM = 70;
+    const voiceMaxWPM = 260;
 
     /*
      * Keep trusting speech matches for longer.
@@ -1763,8 +1765,10 @@ return {
     function getMaxPlausibleLine(now) {
       const elapsedSec = Math.max(0.1, (now - voiceSessionStartTime) / 1000);
       const maxWords = elapsedSec * (voiceMaxWPM / 60) * plausibilityBurstMultiplier;
+      /* taken out these constants to avoid duplication, can probably be deleted
       const voiceMinWPM = 70;
       const voiceMaxWPM = 260;
+      */
 
       let count = 0;
       let maxLine = Math.min(lines.length - 1, voiceCurrentLine + 1);
