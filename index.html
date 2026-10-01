@@ -450,7 +450,7 @@
      * Much stronger catch-up force.
      * Previously 12
      */
-    const voiceCatchupBoostFactor = 20;
+    const voiceCatchupBoostFactor = 18;
 
     /*
      * Look much further ahead.
@@ -1537,7 +1537,7 @@
         speed = 0;
       }
 
-      currentSpeed = currentSpeed * 0.55 + speed * 0.45;
+      currentSpeed = currentSpeed * 0.80 + speed * 0.20;
       scrollPos += currentSpeed * dt;
       scrollPos = clamp(scrollPos, 0, maxScroll);
     }
@@ -1581,22 +1581,24 @@
 
       const match = findBestLineMatch(corpus);
       if (!match) {
+        /* removing debug log
         console.log(
         "NO MATCH",
         corpus.slice(-10).join(" ")
-        );
+        ); */
       return;
       }
 
       const now = performance.now();
       const { lineIndex, progress, score } = match;
 
+      /*removing debug lines
       console.log(
         "MATCH",
         lineIndex,
         score.toFixed(2),
         progress.toFixed(2)
-        );
+        ); */
 
       if (!voiceStarted) {
         if (lineIndex === 0 && score >= voiceStartThreshold) {
@@ -1608,11 +1610,12 @@
         }
       }
 
+      /* removing logging for efficiency
       console.log(
         "Plausibility",
       lineIndex,
       getMaxPlausibleLine(now)
-      );
+      ); */
 
       if (!isLinePlausible(lineIndex, now))
         return;
