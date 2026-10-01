@@ -1225,7 +1225,12 @@
 
       ctx.font = `${state.textSize}px Arial, Helvetica, sans-serif`;
       lines = wrapText(state.text || "", textWidth);
-      lineWords = lines.map(line => splitWords(line));
+      lineWords = lines.map(line => {
+      const words = splitWords(line);
+        return words.length
+        ? words
+        : ["__blank__"];
+        });
 
       const lastLineIndex = Math.max(0, lines.length - 1);
       const lastLineCenterScriptY = (lastLineIndex * lineHeight) + (state.textSize / 2);
@@ -1574,10 +1579,23 @@
       if (!corpus.length) return;
 
       const match = findBestLineMatch(corpus);
-      if (!match) return;
+      if (!match) {
+        console.log(
+        "NO MATCH",
+        corpus.slice(-10).join(" ")
+        );
+      return;
+      }
 
       const now = performance.now();
       const { lineIndex, progress, score } = match;
+
+      console.log(
+        "MATCH",
+        lineIndex,
+        score.toFixed(2),
+        progress.toFixed(2)
+        );
 
       if (!voiceStarted) {
         if (lineIndex === 0 && score >= voiceStartThreshold) {
@@ -1666,7 +1684,7 @@
     }
 
     function findBestLineMatch(corpusWords) {
-      const start = voiceStarted ? voiceCurrentLine : 0;
+      const start = voiceStarted ? Math.max(0, voiceCurrentLine - 8): 0;
       const end = voiceStarted
         ? Math.min(lines.length - 1, voiceCurrentLine + voiceSearchAheadLines)
         : Math.min(lines.length - 1, 2);
