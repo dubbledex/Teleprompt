@@ -1613,7 +1613,7 @@
       lineIndex,
       getMaxPlausibleLine(now)
       );
-      
+
       if (!isLinePlausible(lineIndex, now))
         return;
     
@@ -1700,7 +1700,7 @@
 
       for (let i = start; i <= end; i++) {
         const result = scoreLineMatch(lineWords[i], corpusWords);
-        if (!best || result.score > best.score) {
+        if (!best || result.score >= best.score) {
           best = {
             lineIndex: i,
             score: result.score,
