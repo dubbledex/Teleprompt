@@ -1242,7 +1242,8 @@
       const paragraphs = String(text)
         .replace(/\r\n/g, "\n")
         .replace(/\r/g, "\n")
-        .split("\n");
+        .replace(/\n(?!\n)/g, " ")
+        .split(/\n\s*\n/);
 
       for (const paragraph of paragraphs) {
         if (!paragraph.trim()) {
