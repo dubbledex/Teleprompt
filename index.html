@@ -1486,11 +1486,9 @@
       // aggressively close focus-bar error, not just gently chase it.
       const focusError = focusTarget - scrollPos;
       // Never run ahead of recognised speech
-        if (focusError < -20) {
-        currentSpeed *= 0.7;
-        if (currentSpeed < 5) {
-        currentSpeed = 0;
-        }
+        if (focusError < -80) {
+        currentSpeed *= 0.92;
+        scrollPos += currentSpeed * dt;
         return;
         }
       const followSpeed = Math.max(0, focusError * voiceSpringFactor);
